@@ -1,0 +1,91 @@
+'use client';
+
+import { useState } from 'react';
+
+export default function ProblemBox({ 
+  currentProblem, 
+  onSubmitAnswer, 
+  onClearAnswer 
+}) {
+  const [selectedAnswer, setSelectedAnswer] = useState('');
+  const [message, setMessage] = useState('');
+  const [messageType, setMessageType] = useState('');
+
+  const handleSubmit = () => {
+    if (!currentProblem) return;
+    
+    if (!selectedAnswer) {
+      setMessage('請選擇一個答案');
+      setMessageType('err');
+      return;
+    }
+
+    const isCorrect = selectedAnswer === currentProblem.answer;
+    setMessage(isCorrect ? '答對了！' : `答錯了，正確答案是 ${currentProblem.answer}`);
+    setMessageType(isCorrect ? 'ok' : 'err');
+    
+    onSubmitAnswer(selectedAnswer, isCorrect);
+  };
+
+  const handleClear = () => {
+    setSelectedAnswer('');
+    setMessage('');
+    setMessageType('');
+    onClearAnswer();
+  };
+
+  if (!currentProblem) {
+    return (
+      <div className="panel" id="problemArea">
+        <h2>作題區</h2>
+        <div className="problemBox">
+          <h3>請從右側任務選擇一題開始作答</h3>
+          <div className="problemBody"></div>
+          <div className="problemActions">
+            <button className="btn small" disabled>清除</button>
+            <button className="btn small" disabled>提交</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="panel" id="problemArea">
+      <h2>作題區</h2>
+      <div className="problemBox">
+        <h3>{currentProblem.title}</h3>
+        <div className="problemBody">
+          <p>{currentProblem.question}</p>
+          {currentProblem.options && currentProblem.options.map((option, index) => (
+            <div key={index} className="opt">
+              <input
+                type="radio"
+                id={`opt${index}`}
+                name="answer"
+                value={option}
+                checked={selectedAnswer === option}
+                onChange={(e) => setSelectedAnswer(e.target.value)}
+              />
+              <label htmlFor={`opt${index}`}>{option}</label>
+            </div>
+          ))}
+        </div>
+        {currentProblem.explain && (
+          <div className="problemExplain">
+            <strong>解釋：</strong>{currentProblem.explain}
+          </div>
+        )}
+        {message && (
+          <div className={`msg ${messageType}`}>
+            {message}
+          </div>
+        )}
+        <div className="problemActions">
+          <button className="btn small" onClick={handleClear}>清除</button>
+          <button className="btn small" onClick={handleSubmit}>提交</button>
+        </div>
+      </div>
+    </div>
+  );
+}

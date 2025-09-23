@@ -1,0 +1,57 @@
+[
+  {
+    "id": "c1",
+    "title": "運算練習：2+2=?",
+    "question": "請計算 2 + 2 的結果",
+    "type": "mc",
+    "options": ["3", "4", "5"],
+    "answer": "4",
+    "skill": "calc",
+    "xp": 10,
+    "explain": "2 + 2 = 4，這是基本的加法運算。"
+  },
+  {
+    "id": "c2",
+    "title": "乘法練習：5×5=?",
+    "question": "請計算 5 × 5 的結果",
+    "type": "mc",
+    "options": ["20", "25", "30"],
+    "answer": "25",
+    "skill": "calc",
+    "xp": 12,
+    "explain": "5 × 5 = 25，這是基本的乘法運算。"
+  },
+  {
+    "id": "c3",
+    "title": "代數：x + 3 = 7，x = ?",
+    "question": "解方程式：x + 3 = 7",
+    "type": "mc",
+    "options": ["3", "4", "5"],
+    "answer": "4",
+    "skill": "algebra",
+    "xp": 15,
+    "explain": "x + 3 = 7，所以 x = 7 - 3 = 4"
+  },
+  {
+    "id": "c4",
+    "title": "幾何：正方形面積",
+    "question": "邊長為 6 的正方形面積是多少？",
+    "type": "mc",
+    "options": ["24", "36", "42"],
+    "answer": "36",
+    "skill": "geom",
+    "xp": 18,
+    "explain": "正方形面積 = 邊長²，所以 6² = 36"
+  },
+  {
+    "id": "c5",
+    "title": "應用題：購物計算",
+    "question": "小明買了 3 支筆，每支 15 元，總共要付多少錢？",
+    "type": "mc",
+    "options": ["40", "45", "50"],
+    "answer": "45",
+    "skill": "apply",
+    "xp": 20,
+    "explain": "3 × 15 = 45 元"
+  }
+]
