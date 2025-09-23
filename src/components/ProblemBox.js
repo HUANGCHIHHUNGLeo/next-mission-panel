@@ -10,9 +10,12 @@ export default function ProblemBox({
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('');
+  const [wrongAttempts, setWrongAttempts] = useState(0);
+  const [showExplanation, setShowExplanation] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
 
   const handleSubmit = () => {
-    if (!currentProblem) return;
+    if (!currentProblem || isCompleted) return;
     
     if (!selectedAnswer) {
       setMessage('請選擇一個答案');
@@ -21,18 +24,51 @@ export default function ProblemBox({
     }
 
     const isCorrect = selectedAnswer === currentProblem.answer;
-    setMessage(isCorrect ? '答對了！' : `答錯了，正確答案是 ${currentProblem.answer}`);
-    setMessageType(isCorrect ? 'ok' : 'err');
     
-    onSubmitAnswer(selectedAnswer, isCorrect);
+    if (isCorrect) {
+      setMessage('答對了！');
+      setMessageType('ok');
+      setShowExplanation(true);
+      setIsCompleted(true);
+      onSubmitAnswer(selectedAnswer, true);
+    } else {
+      const newWrongAttempts = wrongAttempts + 1;
+      setWrongAttempts(newWrongAttempts);
+      
+      if (newWrongAttempts >= 2) {
+        setMessage(`答錯了，正確答案是 ${currentProblem.answer}`);
+        setMessageType('err');
+        setShowExplanation(true);
+        setIsCompleted(true);
+        onSubmitAnswer(selectedAnswer, false);
+      } else {
+        setMessage(`答錯了，還有 ${2 - newWrongAttempts} 次機會`);
+        setMessageType('err');
+      }
+    }
   };
 
   const handleClear = () => {
     setSelectedAnswer('');
     setMessage('');
     setMessageType('');
+    setWrongAttempts(0);
+    setShowExplanation(false);
+    setIsCompleted(false);
     onClearAnswer();
   };
+
+  // 當切換到新題目時重置狀態
+  useState(() => {
+    if (currentProblem) {
+      setSelectedAnswer('');
+      setMessage('');
+      setMessageType('');
+      setWrongAttempts(0);
+      setShowExplanation(false);
+      setIsCompleted(false);
+    }
+  }, [currentProblem?.id]);
 
   if (!currentProblem) {
     return (
@@ -66,24 +102,41 @@ export default function ProblemBox({
                 value={option}
                 checked={selectedAnswer === option}
                 onChange={(e) => setSelectedAnswer(e.target.value)}
+                disabled={isCompleted}
               />
               <label htmlFor={`opt${index}`}>{option}</label>
             </div>
           ))}
         </div>
-        {currentProblem.explain && (
+        
+        {/* 只在特定條件下顯示詳解 */}
+        {showExplanation && currentProblem.explain && (
           <div className="problemExplain">
             <strong>解釋：</strong>{currentProblem.explain}
           </div>
         )}
+        
         {message && (
           <div className={`msg ${messageType}`}>
             {message}
           </div>
         )}
+        
         <div className="problemActions">
-          <button className="btn small" onClick={handleClear}>清除</button>
-          <button className="btn small" onClick={handleSubmit}>提交</button>
+          <button 
+            className="btn small" 
+            onClick={handleClear}
+            disabled={!selectedAnswer && !message}
+          >
+            清除
+          </button>
+          <button 
+            className="btn small" 
+            onClick={handleSubmit}
+            disabled={isCompleted}
+          >
+            {isCompleted ? '已完成' : '提交'}
+          </button>
         </div>
       </div>
     </div>
