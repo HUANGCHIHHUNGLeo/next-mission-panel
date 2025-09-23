@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function ProblemBox({ 
   currentProblem, 
@@ -58,8 +58,8 @@ export default function ProblemBox({
     onClearAnswer();
   };
 
-  // 當切換到新題目時重置狀態
-  useState(() => {
+  // 當切換到新題目時自動重置狀態
+  useEffect(() => {
     if (currentProblem) {
       setSelectedAnswer('');
       setMessage('');
