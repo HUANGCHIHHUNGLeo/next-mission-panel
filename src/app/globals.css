@@ -469,7 +469,7 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 55vh;
+  min-height: 40vh;
   background:
     radial-gradient(420px 220px at 50% 65%, rgba(98, 200, 255, .15), rgba(98, 200, 255, 0) 60%),
     radial-gradient(1200px 900px at 50% -10%, rgba(255, 255, 255, .05), rgba(255, 255, 255, 0) 60%);
@@ -479,10 +479,10 @@ body {
 
 .charRing {
   position: absolute;
-  inset: auto 0 16px 0;
+  inset: auto 0 12px 0;
   margin: auto;
-  width: min(72vw, 360px);
-  height: min(72vw, 360px);
+  width: min(50vw, 280px);
+  height: min(50vw, 280px);
   border-radius: 50%;
   box-shadow:
     0 0 0 2px #62c8ff33 inset,
@@ -493,11 +493,11 @@ body {
   position: relative;
   display: grid;
   place-items: center;
-  transform: translateY(-8px);
+  transform: translateY(-6px);
 }
 
 .avatar {
-  width: min(60vw, 320px);
+  width: min(45vw, 240px);
   height: auto;
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, .45));
 }

@@ -78,8 +78,8 @@ export default function CharacterView({
 
         .game-button {
           position: relative;
-          padding: 12px 24px;
-          font-size: 16px;
+          padding: 8px 20px;
+          font-size: 14px;
           font-weight: bold;
           color: #ffffff;
           background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #1e40af 100%);
@@ -91,7 +91,7 @@ export default function CharacterView({
           box-shadow: 
             0 4px 8px rgba(0, 0, 0, 0.3),
             inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          min-width: 100px;
+          min-width: 80px;
           text-align: center;
         }
 
@@ -141,8 +141,8 @@ export default function CharacterView({
 
         .action-button {
           position: relative;
-          padding: 10px 20px;
-          font-size: 14px;
+          padding: 8px 16px;
+          font-size: 12px;
           font-weight: 600;
           color: #ffffff;
           border: 2px solid;
@@ -153,7 +153,7 @@ export default function CharacterView({
           box-shadow: 
             0 3px 6px rgba(0, 0, 0, 0.3),
             inset 0 1px 0 rgba(255, 255, 255, 0.2);
-          min-width: 120px;
+          min-width: 100px;
           text-align: center;
         }
 
@@ -238,9 +238,9 @@ export default function CharacterView({
 
         .panel-title {
           color: #e2e8f0;
-          font-size: 18px;
+          font-size: 16px;
           font-weight: bold;
-          margin-bottom: 16px;
+          margin-bottom: 10px;
           text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
         }
 
@@ -249,14 +249,14 @@ export default function CharacterView({
           gap: 12px;
           justify-content: center;
           flex-wrap: wrap;
-          margin-bottom: 12px;
+          margin-bottom: 8px;
         }
 
         .action-button-group {
           display: flex;
           gap: 8px;
           flex-wrap: wrap;
-          margin-top: 12px;
+          margin-top: 8px;
         }
       `}</style>
 
@@ -268,7 +268,7 @@ export default function CharacterView({
       </div>
 
       {/* 性別選擇 */}
-      <div className="panel genderPanel" style={{ marginTop: '16px' }}>
+      <div className="panel genderPanel" style={{ marginTop: '8px' }}>
         <h2 className="panel-title">性別選擇</h2>
         <div className="button-group">
           <button 
@@ -290,7 +290,7 @@ export default function CharacterView({
       </div>
 
       {/* 上傳功能 */}
-      <div className="panel uploadPanel" style={{ marginTop: '16px' }}>
+      <div className="panel uploadPanel" style={{ marginTop: '8px' }}>
         <h2 className="panel-title">自訂角色圖片</h2>
         <div className="field">
           <label style={{ color: '#e2e8f0', fontSize: '14px', fontWeight: '600', marginBottom: '8px', display: 'block' }}>
