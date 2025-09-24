@@ -1,13 +1,14 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 import Topbar from '../components/Topbar';
 import SkillPanel from '../components/SkillPanel';
 import ProblemBox from '../components/ProblemBox';
 import TaskList from '../components/TaskList';
 import CharacterView from '../components/CharacterView';
 import SettingsView from '../components/SettingsView';
+import AuthModal from '../components/AuthModal';
 
 const STORAGE_KEY = 'one_prof_mvp_step2';
 
@@ -15,7 +16,7 @@ const DEFAULT_DB = {
   lang: 'zh',
   me: {
     name: '',
-    gender: 'male', // 新增性別欄位，預設為男性
+    gender: 'male',
     title: '學生',
     cls: '五年級',
     level: 1,
@@ -48,20 +49,125 @@ export default function Home() {
   const [coreTasks, setCoreTasks] = useState([]);
   const [dailyTasks, setDailyTasks] = useState([]);
   const [currentProblem, setCurrentProblem] = useState(null);
+  
+  // 認證相關狀態
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // 載入資料
+  // 檢查用戶認證狀態
   useEffect(() => {
-    const savedData = localStorage.getItem(STORAGE_KEY);
-    if (savedData) {
-      try {
-        const parsed = JSON.parse(savedData);
-        setDb({ ...DEFAULT_DB, ...parsed });
-      } catch (e) {
-        console.error('載入資料失敗', e);
+    // 取得當前用戶
+    const getCurrentUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+      setLoading(false);
+      
+      if (user) {
+        // 載入用戶資料
+        await loadUserData(user.id);
+      }
+    };
+
+    getCurrentUser();
+
+    // 監聽認證狀態變化
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          await loadUserData(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setDb(DEFAULT_DB);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 載入用戶資料
+  const loadUserData = async (userId) => {
+    try {
+      // 載入學生檔案
+      const { data: profile } = await supabase
+        .from('student_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      // 載入技能進度
+      const { data: skills } = await supabase
+        .from('skill_progress')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (profile) {
+        const newDb = {
+          ...DEFAULT_DB,
+          me: {
+            ...DEFAULT_DB.me,
+            name: profile.display_name || '',
+            gender: profile.character_gender || 'male',
+            level: profile.level || 1,
+            exp: profile.total_exp || 0,
+            coins: profile.coins || 200,
+            avatarImg: profile.character_image,
+          }
+        };
+
+        // 更新技能資料
+        if (skills && skills.length > 0) {
+          const skillsMap = {};
+          skills.forEach(skill => {
+            const skillKey = skill.skill_name;
+            skillsMap[skillKey] = {
+              name: { zh: getSkillDisplayName(skillKey) },
+              xp: skill.current_exp || 0,
+              lvl: skill.level || 1,
+              unlocked: true
+            };
+          });
+          newDb.skills = { ...DEFAULT_DB.skills, ...skillsMap };
+        }
+
+        setDb(newDb);
+        saveData(newDb);
+      }
+    } catch (error) {
+      console.error('載入用戶資料失敗:', error);
+    }
+  };
+
+  // 取得技能顯示名稱
+  const getSkillDisplayName = (skillKey) => {
+    const skillNames = {
+      number_sense: '數感力',
+      calculation: '運算力',
+      geometry: '幾何力',
+      reasoning: '推理力',
+      chart_reading: '圖解力',
+      application: '應用力'
+    };
+    return skillNames[skillKey] || skillKey;
+  };
+
+  // 載入資料（保持原有的本地儲存功能作為備份）
+  useEffect(() => {
+    if (!user) {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          setDb({ ...DEFAULT_DB, ...parsed });
+        } catch (e) {
+          console.error('載入資料失敗', e);
+        }
       }
     }
     loadTasks();
-  }, []);
+  }, [user]);
 
   // 儲存資料
   const saveData = (newDb) => {
@@ -80,12 +186,10 @@ export default function Home() {
       const core = await coreRes.json();
       const daily = await dailyRes.json();
       if (loadCore) {
-        // 隨機選取3個核心任務
         const shuffledCore = core.sort(() => 0.5 - Math.random());
         setCoreTasks(shuffledCore.slice(0, 3).map(task => ({ ...task, done: false })));
       }
       if (loadDaily) {
-        // 隨機選取3個日常任務
         const shuffledDaily = daily.sort(() => 0.5 - Math.random());
         setDailyTasks(shuffledDaily.slice(0, 3).map(task => ({ ...task, done: false })));
       }
@@ -107,7 +211,7 @@ export default function Home() {
   };
 
   // 提交答案
-  const handleSubmitAnswer = (selectedAnswer, isCorrect, xpGained, skillKey) => {
+  const handleSubmitAnswer = async (selectedAnswer, isCorrect, xpGained, skillKey) => {
     if (currentProblem) {
       const newDb = { ...db };
       
@@ -121,13 +225,11 @@ export default function Home() {
       let skillLevelUp = false;
       let skillName = "";
       
-      // 使用傳入的skillKey或currentProblem.skill
       const targetSkill = skillKey || currentProblem.skill;
       
       if (targetSkill && newDb.skills[targetSkill]) {
         newDb.skills[targetSkill].xp += xpGained;
         
-        // 檢查技能升級
         const skill = newDb.skills[targetSkill];
         const needed = 100 + (skill.lvl - 1) * 20;
         if (skill.xp >= needed) {
@@ -169,7 +271,6 @@ export default function Home() {
         notifications.unshift(`🌟 角色升級至 Lv.${newDb.me.level}！`);
       }
       
-      // 保持最多 10 條通知
       newDb.notifs = notifications.slice(0, 10);
       
       // 標記任務完成
@@ -184,6 +285,64 @@ export default function Home() {
       }
       
       saveData(newDb);
+
+      // 如果用戶已登入，同步到資料庫
+      if (user) {
+        await syncToDatabase(newDb, {
+          problemId: currentProblem.id || `${currentProblem.title}-${Date.now()}`,
+          problemType: currentProblem.isCore ? 'core' : 'daily',
+          question: currentProblem.title,
+          userAnswer: selectedAnswer,
+          correctAnswer: currentProblem.answer,
+          isCorrect,
+          expGained: xpGained,
+          coinsGained,
+          skillsAffected: { [targetSkill]: xpGained }
+        });
+      }
+    }
+  };
+
+  // 同步資料到資料庫
+  const syncToDatabase = async (dbData, learningRecord) => {
+    try {
+      // 更新學生檔案
+      await supabase
+        .from('student_profiles')
+        .update({
+          total_exp: dbData.me.exp,
+          level: dbData.me.level,
+          coins: dbData.me.coins,
+          character_gender: dbData.me.gender,
+          character_image: dbData.me.avatarImg,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id);
+
+      // 更新技能進度
+      for (const [skillKey, skillData] of Object.entries(dbData.skills)) {
+        await supabase
+          .from('skill_progress')
+          .upsert({
+            user_id: user.id,
+            skill_name: skillKey,
+            current_exp: skillData.xp,
+            level: skillData.lvl,
+            updated_at: new Date().toISOString()
+          });
+      }
+
+      // 記錄學習記錄
+      if (learningRecord) {
+        await supabase
+          .from('learning_records')
+          .insert([{
+            user_id: user.id,
+            ...learningRecord
+          }]);
+      }
+    } catch (error) {
+      console.error('同步資料失敗:', error);
     }
   };
 
@@ -192,7 +351,7 @@ export default function Home() {
     // 由 ProblemBox 組件處理
   };
 
-  // 刷新核心任務 (現在是每日任務)
+  // 刷新核心任務
   const handleRefreshTasks = () => {
     if (db.cards.refresh <= 0) return;
     
@@ -200,32 +359,27 @@ export default function Home() {
     newDb.cards.refresh -= 1;
     saveData(newDb);
     
-    // 重新載入每日任務 (核心任務)
     loadTasks(true, false);
   };
 
-  // 更新日常任務 (現在是特別訓練)
+  // 更新日常任務
   const handleRerollSide = () => {
     const today = new Date().toDateString();
     const newDb = { ...db };
     
-    // 檢查是否是新的一天
     if (newDb.specialTraining.lastUpdateDate !== today) {
       newDb.specialTraining.dailyUpdates = 0;
       newDb.specialTraining.lastUpdateDate = today;
     }
     
-    // 檢查是否已達到每日更新限制
     if (newDb.specialTraining.dailyUpdates >= 5) {
       alert('今日特別訓練更新次數已用完（每日限5次）');
       return;
     }
     
-    // 增加更新次數
     newDb.specialTraining.dailyUpdates += 1;
     saveData(newDb);
     
-    // 重新載入特別訓練 (日常任務)
     loadTasks(false, true);
   };
 
@@ -278,6 +432,30 @@ export default function Home() {
     saveData(newDb);
   };
 
+  // 登出
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setDb(DEFAULT_DB);
+    localStorage.removeItem(STORAGE_KEY);
+  };
+
+  // 認證成功回調
+  const handleAuthSuccess = (authUser) => {
+    setUser(authUser);
+    setShowAuthModal(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="stage">
+        <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ color: 'var(--white)', fontSize: '18px' }}>載入中...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="stage">
       <div className="screen">
@@ -291,6 +469,9 @@ export default function Home() {
           notifications={db.notifs}
           onLanguageToggle={handleLanguageToggle}
           language={db.lang}
+          user={user}
+          onLogin={() => setShowAuthModal(true)}
+          onLogout={handleLogout}
         />
 
         {currentView === 'dashboard' && (
@@ -327,7 +508,7 @@ export default function Home() {
           <CharacterView
             userInfo={db.me}
             onAvatarUpdate={handleAvatarUpdate}
-            onGenderUpdate={handleGenderUpdate} // 傳遞性別更新函數
+            onGenderUpdate={handleGenderUpdate}
           />
         )}
 
@@ -339,8 +520,13 @@ export default function Home() {
             onResetData={handleResetData}
           />
         )}
+
+        <AuthModal
+          isOpen={showAuthModal}
+          onClose={() => setShowAuthModal(false)}
+          onAuthSuccess={handleAuthSuccess}
+        />
       </div>
     </div>
   );
 }
-

@@ -11,7 +11,10 @@ export default function Topbar({
   refreshCards,
   notifications,
   onLanguageToggle,
-  language 
+  language,
+  user,
+  onLogin,
+  onLogout
 }) {
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -36,10 +39,31 @@ export default function Topbar({
             </button>
           ))}
         </div>
+        
         <div className="topStats">
-          <span className="chip">Lv.{userLevel} / {userExp}%</span>
-          <span className="chip">金幣 {coins}</span>
-          <span className="chip">刷新卡 x{refreshCards}</span>
+          {user ? (
+            <>
+              <span className="chip user-info">
+                👤 {user.user_metadata?.display_name || user.email}
+              </span>
+              <span className="chip">Lv.{userLevel} / {userExp}%</span>
+              <span className="chip">金幣 {coins}</span>
+              <span className="chip">刷新卡 x{refreshCards}</span>
+              <button className="langBtn" onClick={onLogout}>
+                登出
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="chip">訪客模式</span>
+              <button className="langBtn" onClick={onLogin}>
+                登入
+              </button>
+            </>
+          )}
+          <button className="langBtn" onClick={onLanguageToggle}>
+            {language === 'zh' ? '中' : 'EN'}
+          </button>
         </div>
       </div>
 
@@ -48,17 +72,63 @@ export default function Topbar({
         <span className="badge">!</span>
         <div className="ttl">通知</div>
         <ul>
-          {notifications.slice(0, 3).map((notif, index) => (
-            <li key={index}>{notif}</li>
+          {notifications.slice(0, 3).map((notif, i) => (
+            <li key={i}>{notif}</li>
           ))}
         </ul>
         <button 
-          className="langBtn" 
-          onClick={onLanguageToggle}
+          className="langBtn"
+          onClick={() => setShowNotifications(!showNotifications)}
+          style={{ marginLeft: 'auto' }}
         >
-          {language === 'zh' ? '中 / EN' : 'EN / 中'}
+          {showNotifications ? '收起' : '展開'}
         </button>
       </div>
+
+      {/* 展開的通知列表 */}
+      {showNotifications && (
+        <div className="expandedNotifications">
+          <div className="panel">
+            <h3>所有通知</h3>
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+              {notifications.map((notif, i) => (
+                <li key={i} style={{ 
+                  padding: '8px 0', 
+                  borderBottom: i < notifications.length - 1 ? '1px solid #62c8ff33' : 'none',
+                  fontSize: '13px',
+                  lineHeight: '1.4'
+                }}>
+                  {notif}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      <style jsx>{`
+        .user-info {
+          max-width: 200px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .expandedNotifications {
+          margin-top: 8px;
+        }
+
+        .expandedNotifications .panel {
+          max-height: 300px;
+          overflow-y: auto;
+        }
+
+        .expandedNotifications h3 {
+          margin: 0 0 12px 0;
+          font-size: 16px;
+          color: #d9f6ff;
+        }
+      `}</style>
     </>
   );
 }
