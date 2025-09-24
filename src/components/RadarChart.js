@@ -26,22 +26,26 @@ export default function RadarChart({ skills }) {
 
   // 確保有預設值，避免數據問題
   const defaultSkills = {
-    calc: { name: { zh: '運算能力' }, lvl: 1 },
-    geom: { name: { zh: '幾何圖形' }, lvl: 1 },
-    algebra: { name: { zh: '代數運用' }, lvl: 1 },
-    apply: { name: { zh: '解題應用' }, lvl: 1 }
+    number_sense: { name: { zh: '數感力' }, lvl: 1 },
+    calculation: { name: { zh: '運算力' }, lvl: 1 },
+    geometry: { name: { zh: '幾何力' }, lvl: 1 },
+    reasoning: { name: { zh: '推理力' }, lvl: 1 },
+    chart_reading: { name: { zh: '圖解力' }, lvl: 1 },
+    application: { name: { zh: '應用力' }, lvl: 1 }
   };
 
   // 合併技能數據，確保所有技能都存在
   const mergedSkills = { ...defaultSkills, ...skills };
 
   // 固定順序和標籤
-  const skillOrder = ['calc', 'geom', 'algebra', 'apply'];
+  const skillOrder = ['number_sense', 'calculation', 'geometry', 'reasoning', 'chart_reading', 'application'];
   const labels = [
-    '運算能力',
-    '幾何圖形', 
-    '代數運用',
-    '解題應用'
+    '數感力',
+    '運算力', 
+    '幾何力',
+    '推理力',
+    '圖解力',
+    '應用力'
   ];
 
   // 提取技能等級數據
