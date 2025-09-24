@@ -11,10 +11,26 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
+  // 密碼強度檢查
+  const checkPasswordStrength = (password) => {
+    if (password.length < 6) return { valid: false, message: '密碼至少需要 6 個字元' };
+    if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) return { valid: false, message: '密碼需包含英文字母和數字' };
+    return { valid: true, message: '密碼強度良好' };
+  };
+
+  const passwordCheck = password ? checkPasswordStrength(password) : { valid: false, message: '' };
+
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
+
+    // 註冊時檢查密碼強度
+    if (!isLogin && !passwordCheck.valid) {
+      setMessage(passwordCheck.message);
+      setLoading(false);
+      return;
+    }
 
     try {
       if (isLogin) {
@@ -24,7 +40,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           password,
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            throw new Error('帳號或密碼錯誤，請重新輸入');
+          }
+          throw error;
+        }
 
         if (data.user) {
           setMessage('登入成功！');
@@ -43,7 +64,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           }
         });
 
-        if (error) throw error;
+        if (error) {
+          if (error.message.includes('User already registered')) {
+            throw new Error('此 Email 已經註冊過了，請直接登入');
+          }
+          if (error.message.includes('Password should be at least 6 characters')) {
+            throw new Error('密碼至少需要 6 個字元');
+          }
+          throw error;
+        }
 
         if (data.user) {
           // 建立用戶資料
@@ -80,24 +109,55 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           }
 
           // 初始化技能進度
-          const skills = ['number_sense', 'calculation', 'geometry', 'reasoning', 'chart_reading', 'application'];
-          const skillPromises = skills.map(skill => 
-            supabase
-              .from('skill_progress')
-              .insert([
-                {
-                  user_id: data.user.id,
-                  skill_name: skill,
-                  current_exp: 0,
-                  level: 1
-                }
-              ])
-          );
+          const skills = ['數感力', '運算力', '幾何力', '推理力', '圖解力', '應用力'];
+          const skillData = skills.map(skill => ({
+            user_id: data.user.id,
+            skill_name: skill,
+            current_exp: 0,
+            level: 1,
+            total_problems_solved: 0,
+            correct_answers: 0
+          }));
 
-          await Promise.all(skillPromises);
+          const { error: skillError } = await supabase
+            .from('skill_progress')
+            .insert(skillData);
 
-          setMessage('註冊成功！請登入。');
-          setIsLogin(true);
+          if (skillError) {
+            console.error('建立技能進度失敗:', skillError);
+          }
+
+          // 建立任務進度
+          const { error: taskError } = await supabase
+            .from('task_progress')
+            .insert([
+              {
+                user_id: data.user.id,
+                task_type: 'core',
+                completed_today: 0,
+                special_training_uses: 0,
+                refresh_cards: 2
+              },
+              {
+                user_id: data.user.id,
+                task_type: 'daily',
+                completed_today: 0,
+                special_training_uses: 0,
+                refresh_cards: 2
+              }
+            ]);
+
+          if (taskError) {
+            console.error('建立任務進度失敗:', taskError);
+          }
+
+          setMessage('註冊成功！正在為您登入...');
+          
+          // 註冊成功後自動登入
+          setTimeout(() => {
+            onAuthSuccess(data.user);
+            onClose();
+          }, 1000);
         }
       }
     } catch (error) {
@@ -127,6 +187,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 onChange={(e) => setDisplayName(e.target.value)}
                 required={!isLogin}
                 placeholder="請輸入您的名稱"
+                autoComplete="name"
               />
             </div>
           )}
@@ -139,22 +200,40 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="請輸入 Email"
+              autoComplete="email"
             />
           </div>
 
           <div className="form-group">
-            <label>密碼</label>
+            <label>
+              密碼
+              {!isLogin && (
+                <span className="password-hint">
+                  (至少6字元，需包含英文和數字)
+                </span>
+              )}
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              placeholder="請輸入密碼"
-              minLength={6}
+              placeholder={isLogin ? "請輸入密碼" : "例如：abc123456"}
+              autoComplete={isLogin ? "current-password" : "new-password"}
+              className={!isLogin && password ? (passwordCheck.valid ? 'valid' : 'invalid') : ''}
             />
+            {!isLogin && password && (
+              <div className={`password-feedback ${passwordCheck.valid ? 'valid' : 'invalid'}`}>
+                {passwordCheck.message}
+              </div>
+            )}
           </div>
 
-          <button type="submit" disabled={loading} className="auth-submit-btn">
+          <button 
+            type="submit" 
+            disabled={loading || (!isLogin && password && !passwordCheck.valid)} 
+            className="auth-submit-btn"
+          >
             {loading ? '處理中...' : (isLogin ? '登入' : '註冊')}
           </button>
 
@@ -171,6 +250,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             onClick={() => {
               setIsLogin(!isLogin);
               setMessage('');
+              setPassword('');
             }}
             className="switch-btn"
           >
@@ -251,6 +331,15 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           color: var(--white);
           font-size: 14px;
           font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .password-hint {
+          color: #999;
+          font-size: 12px;
+          font-weight: normal;
         }
 
         .form-group input {
@@ -263,10 +352,31 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           font-family: inherit;
         }
 
+        .form-group input.valid {
+          border-color: #4CAF50;
+        }
+
+        .form-group input.invalid {
+          border-color: #ff5d7a;
+        }
+
         .form-group input:focus {
           outline: none;
           border-color: var(--neon);
           box-shadow: 0 0 6px #62c8ff66;
+        }
+
+        .password-feedback {
+          font-size: 12px;
+          margin-top: 4px;
+        }
+
+        .password-feedback.valid {
+          color: #4CAF50;
+        }
+
+        .password-feedback.invalid {
+          color: #ff5d7a;
         }
 
         .auth-submit-btn {
@@ -291,6 +401,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         .auth-submit-btn:disabled {
           opacity: 0.6;
           cursor: not-allowed;
+          background: #666;
         }
 
         .auth-message {
