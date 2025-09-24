@@ -34,18 +34,24 @@ body {
 /* ===== Stage & Screen ===== */
 .stage {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   padding: 8px;
   display: flex;
   align-items: stretch;
   justify-content: stretch;
-  overflow: hidden;
+}
+
+/* 桌面版固定高度 */
+@media (min-width: 768px) {
+  .stage {
+    height: 100vh;
+    overflow: hidden;
+  }
 }
 
 .screen {
   position: relative;
   width: 100%;
-  height: 100%;
   background: linear-gradient(160deg, var(--deep), var(--deep2));
   border-radius: 14px;
   box-shadow:
@@ -55,7 +61,15 @@ body {
   display: grid;
   grid-template-rows: auto auto 1fr;
   gap: 8px;
-  overflow: hidden;
+  overflow: auto;
+}
+
+/* 桌面版固定高度 */
+@media (min-width: 768px) {
+  .screen {
+    height: 100%;
+    overflow: hidden;
+  }
 }
 
 /* ===== Topbar ===== */
@@ -194,14 +208,29 @@ body {
   overflow: auto;
 }
 
+/* 手機版任務面板調整 */
+@media (max-width: 767px) {
+  .panel {
+    border-radius: 10px;
+    padding: 12px;
+  }
+}
+
 .panel h2 {
   margin: 0 0 12px;
-  font-size: 22px;
+  font-size: 16px;
   color: #d9f6ff;
   text-shadow: 0 0 6px #62c8ff55;
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+/* 桌面版面板標題 */
+@media (min-width: 768px) {
+  .panel h2 {
+    font-size: 22px;
+  }
 }
 
 /* ===== Meta Info ===== */
@@ -364,6 +393,14 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 12px;
+}
+
+/* 桌面版任務名稱 */
+@media (min-width: 768px) {
+  .taskname {
+    font-size: 14px;
+  }
 }
 
 /* 手機版 - 保持原本大小 */
@@ -410,6 +447,14 @@ body {
 .xpGold {
   color: var(--gold);
   text-shadow: var(--goldGlow);
+  font-size: 11px;
+}
+
+/* 桌面版XP金幣 */
+@media (min-width: 768px) {
+  .xpGold {
+    font-size: 13px;
+  }
 }
 
 /* ===== Character View ===== */
