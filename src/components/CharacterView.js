@@ -4,7 +4,8 @@ import { useState, useRef } from 'react';
 
 export default function CharacterView({ 
   userInfo, 
-  onAvatarUpdate 
+  onAvatarUpdate,
+  onGenderUpdate
 }) {
   const [avatarImg, setAvatarImg] = useState(userInfo.avatarImg);
   const fileInputRef = useRef(null);
@@ -33,49 +34,90 @@ export default function CharacterView({
     }
   };
 
+  const handleGenderSelect = (gender) => {
+    onGenderUpdate(gender);
+    // 當選擇性別時，如果沒有自訂頭像，清除當前頭像以顯示預設圖片
+    if (!userInfo.avatarImg) {
+      setAvatarImg(null);
+    }
+  };
+
+  const renderAvatar = () => {
+    // 優先顯示自訂頭像
+    if (avatarImg) {
+      return <img className="avatar" src={avatarImg} alt="角色圖片" />;
+    }
+    
+    // 如果有用戶上傳的頭像，顯示用戶頭像
+    if (userInfo.avatarImg) {
+      return <img className="avatar" src={userInfo.avatarImg} alt="角色圖片" />;
+    }
+    
+    // 根據性別顯示預設角色圖片
+    if (userInfo.gender === 'female') {
+      return <img className="avatar" src="/images/female_character.png" alt="預設女性角色" />;
+    }
+    return <img className="avatar" src="/images/male_character.png" alt="預設男性角色" />;
+  };
+
   return (
     <div id="viewCharacter">
       <div className="charStage">
         <div className="charRing"></div>
         <div className="charWrap">
-          {avatarImg ? (
-            <img 
-              className="avatar" 
-              src={avatarImg} 
-              alt="角色圖片" 
-            />
-          ) : (
-            <svg 
-              className="avatar" 
-              viewBox="0 0 256 256" 
-              xmlns="http://www.w3.org/2000/svg" 
-              aria-label="預設角色"
-            >
-              <defs>
-                <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#8b4a4a" />
-                  <stop offset="1" stopColor="#b46868" />
-                </linearGradient>
-                <radialGradient id="eye" cx="0.5" cy="0.5" r="0.6">
-                  <stop offset="0" stopColor="#fff176" />
-                  <stop offset="0.5" stopColor="#ff7043" />
-                  <stop offset="1" stopColor="#d32f2f" />
-                </radialGradient>
-              </defs>
-              <ellipse cx="128" cy="96" rx="96" ry="76" fill="url(#hair)" />
-              <circle cx="128" cy="112" r="52" fill="#ffe5d9" stroke="#d9a39a" strokeWidth="2" />
-              <ellipse cx="104" cy="116" rx="18" ry="20" fill="url(#eye)" />
-              <ellipse cx="152" cy="116" rx="18" ry="20" fill="url(#eye)" />
-              <path d="M112 136c6 8 26 8 32 0" stroke="#d84315" strokeWidth="4" fill="none" strokeLinecap="round" />
-              <path d="M86 168h84c10 0 18 8 18 18v14c0 6-4 10-10 12-30 10-60 10-100 0-6-2-10-6-10-12v-14c0-10 8-18 18-18z" fill="#e8f0ff" stroke="#9ecbff" strokeWidth="2" />
-            </svg>
-          )}
+          {renderAvatar()}
+        </div>
+      </div>
+
+      {/* 性別選擇 */}
+      <div className="panel genderPanel" style={{ marginTop: '16px' }}>
+        <h2>性別選擇</h2>
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <button 
+            className={`btn ${userInfo.gender === 'male' ? 'active' : ''}`}
+            onClick={() => handleGenderSelect('male')}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: userInfo.gender === 'male' ? 'bold' : 'normal',
+              backgroundColor: userInfo.gender === 'male' ? '#4f46e5' : '#e5e7eb',
+              color: userInfo.gender === 'male' ? 'white' : '#374151',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              minWidth: '80px'
+            }}
+          >
+            男性
+          </button>
+          <button 
+            className={`btn ${userInfo.gender === 'female' ? 'active' : ''}`}
+            onClick={() => handleGenderSelect('female')}
+            style={{
+              padding: '12px 24px',
+              fontSize: '16px',
+              fontWeight: userInfo.gender === 'female' ? 'bold' : 'normal',
+              backgroundColor: userInfo.gender === 'female' ? '#ec4899' : '#e5e7eb',
+              color: userInfo.gender === 'female' ? 'white' : '#374151',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              minWidth: '80px'
+            }}
+          >
+            女性
+          </button>
+        </div>
+        <div className="sm" style={{ opacity: 0.7, marginTop: '8px', textAlign: 'center' }}>
+          選擇性別將顯示對應的預設角色圖片
         </div>
       </div>
 
       {/* 上傳功能 */}
       <div className="panel uploadPanel" style={{ marginTop: '16px' }}>
-        <h2>角色圖片管理</h2>
+        <h2>自訂角色圖片</h2>
         <div className="field">
           <label>選擇圖片</label>
           <input 
@@ -83,18 +125,52 @@ export default function CharacterView({
             ref={fileInputRef}
             accept="image/*" 
             onChange={handleFileChange}
+            style={{
+              width: '100%',
+              padding: '8px',
+              border: '2px dashed #d1d5db',
+              borderRadius: '8px',
+              backgroundColor: '#f9fafb',
+              cursor: 'pointer'
+            }}
           />
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '8px' }}>
-          <button className="btn" onClick={handleApplyAvatar}>
-            套用至角色介面
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '12px' }}>
+          <button 
+            className="btn" 
+            onClick={handleApplyAvatar}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            套用自訂圖片
           </button>
-          <button className="btn" onClick={handleClearAvatar}>
-            移除自訂圖片
+          <button 
+            className="btn" 
+            onClick={handleClearAvatar}
+            style={{
+              padding: '10px 16px',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '500'
+            }}
+          >
+            恢復預設圖片
           </button>
         </div>
-        <div className="sm" style={{ opacity: 0.8, marginTop: '6px' }}>
-          圖片將以 base64 儲存於本機（localStorage），不會上傳到網路。
+        <div className="sm" style={{ opacity: 0.7, marginTop: '8px', fontSize: '12px' }}>
+          自訂圖片將覆蓋預設角色圖片，儲存於本機瀏覽器中，不會上傳到網路。
         </div>
       </div>
     </div>

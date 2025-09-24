@@ -15,6 +15,7 @@ const DEFAULT_DB = {
   lang: 'zh',
   me: {
     name: '',
+    gender: 'male', // 新增性別欄位，預設為男性
     title: '學生',
     cls: '五年級',
     level: 1,
@@ -68,10 +69,11 @@ export default function Home() {
   // 載入題庫
   const loadTasks = async (loadCore = true, loadDaily = true) => {
     try {
-      const [coreRes, dailyRes] = await Promise.all([
-        loadCore ? fetch("/tasks/core.json") : Promise.resolve({ json: () => Promise.resolve([]) }),
-        loadDaily ? fetch("/tasks/daily.json") : Promise.resolve({ json: () => Promise.resolve([]) })
-      ]);
+      const corePromise = loadCore ? fetch("/tasks/core.json") : Promise.resolve({ json: () => Promise.resolve([]) });
+      const dailyPromise = loadDaily ? fetch("/tasks/daily.json") : Promise.resolve({ json: () => Promise.resolve([]) });
+      
+      const [coreRes, dailyRes] = await Promise.all([corePromise, dailyPromise]);
+      
       const core = await coreRes.json();
       const daily = await dailyRes.json();
       if (loadCore) {
@@ -236,6 +238,13 @@ export default function Home() {
     saveData(newDb);
   };
 
+  // 更新性別
+  const handleGenderUpdate = (gender) => {
+    const newDb = { ...db };
+    newDb.me.gender = gender;
+    saveData(newDb);
+  };
+
   // 切換語言
   const handleLanguageToggle = () => {
     const newDb = { ...db };
@@ -291,6 +300,7 @@ export default function Home() {
           <CharacterView
             userInfo={db.me}
             onAvatarUpdate={handleAvatarUpdate}
+            onGenderUpdate={handleGenderUpdate} // 傳遞性別更新函數
           />
         )}
 
