@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -68,19 +69,23 @@ export default function Home() {
   const loadTasks = async (loadCore = true, loadDaily = true) => {
     try {
       const [coreRes, dailyRes] = await Promise.all([
-        loadCore ? fetch(\'/tasks/core.json\') : Promise.resolve({ json: () => Promise.resolve([]) }),
-        loadDaily ? fetch(\'/tasks/daily.json\') : Promise.resolve({ json: () => Promise.resolve([]) })
+        loadCore ? fetch("/tasks/core.json") : Promise.resolve({ json: () => Promise.resolve([]) }),
+        loadDaily ? fetch("/tasks/daily.json") : Promise.resolve({ json: () => Promise.resolve([]) })
       ]);
       const core = await coreRes.json();
       const daily = await dailyRes.json();
       if (loadCore) {
-        setCoreTasks(core.map(task => ({ ...task, done: false })));
+        // 隨機選取3個核心任務
+        const shuffledCore = core.sort(() => 0.5 - Math.random());
+        setCoreTasks(shuffledCore.slice(0, 3).map(task => ({ ...task, done: false })));
       }
       if (loadDaily) {
-        setDailyTasks(daily.map(task => ({ ...task, done: false })));
+        // 隨機選取3個日常任務
+        const shuffledDaily = daily.sort(() => 0.5 - Math.random());
+        setDailyTasks(shuffledDaily.slice(0, 3).map(task => ({ ...task, done: false })));
       }
     } catch (e) {
-      console.error(\'載入任務失敗\', e);
+      console.error('載入任務失敗', e);
     }
   };
 
@@ -97,20 +102,19 @@ export default function Home() {
   };
 
   // 提交答案
-  const handleSubmitAnswer = (answer, isCorrect) => {
+  const handleSubmitAnswer = (selectedAnswer, isCorrect, xpGained) => {
     if (currentProblem) {
       const newDb = { ...db };
-      
-      // 計算獲得的經驗值和金幣
-      const xpGained = currentProblem.xp || 10;
-      const coinsGained = Math.floor(xpGained / 2);
       
       // 增加經驗值
       newDb.me.exp += xpGained;
       
+      // 計算獲得的金幣
+      const coinsGained = Math.floor(xpGained / 2);
+      
       // 增加技能經驗
       let skillLevelUp = false;
-      let skillName = '';
+      let skillName = "";
       if (currentProblem.skill && newDb.skills[currentProblem.skill]) {
         newDb.skills[currentProblem.skill].xp += xpGained;
         
@@ -179,7 +183,7 @@ export default function Home() {
     // 由 ProblemBox 組件處理
   };
 
-  // 刷新核心任務
+  // 刷新核心任務 (現在是每日任務)
   const handleRefreshTasks = () => {
     if (db.cards.refresh <= 0) return;
     
@@ -187,13 +191,13 @@ export default function Home() {
     newDb.cards.refresh -= 1;
     saveData(newDb);
     
-    // 重新載入核心任務
+    // 重新載入每日任務 (核心任務)
     loadTasks(true, false);
   };
 
-  // 更新日常任務
+  // 更新日常任務 (現在是特別訓練)
   const handleRerollSide = () => {
-    // 重新載入日常任務
+    // 重新載入特別訓練 (日常任務)
     loadTasks(false, true);
   };
 
@@ -302,3 +306,4 @@ export default function Home() {
     </div>
   );
 }
+

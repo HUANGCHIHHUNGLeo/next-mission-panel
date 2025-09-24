@@ -29,7 +29,7 @@ export default function TaskList({
       {/* 核心任務 */}
       <div className="panel">
         <h2>
-          核心任務 <span className="sm">（每日 20:00 刷新）</span>
+          每日任務 <span className="sm">（每日 20:00 刷新）</span>
           <span>
             <button 
               className="btn" 
@@ -48,7 +48,7 @@ export default function TaskList({
       {/* 日常任務 */}
       <div className="panel">
         <h2>
-          日常任務
+          特別訓練
           <span>
             <button className="btn" onClick={onRerollSide}>
               更新

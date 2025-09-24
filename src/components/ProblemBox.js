@@ -1,11 +1,12 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
 
-export default function ProblemBox({ 
-  currentProblem, 
-  onSubmitAnswer, 
-  onClearAnswer 
+export default function ProblemBox({
+  currentProblem,
+  onSubmitAnswer,
+  onClearAnswer
 }) {
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [message, setMessage] = useState('');
@@ -16,7 +17,7 @@ export default function ProblemBox({
 
   const handleSubmit = () => {
     if (!currentProblem || isCompleted) return;
-    
+
     if (!selectedAnswer) {
       setMessage('請選擇一個答案');
       setMessageType('err');
@@ -24,23 +25,23 @@ export default function ProblemBox({
     }
 
     const isCorrect = selectedAnswer === currentProblem.answer;
-    
+
     if (isCorrect) {
       setMessage('答對了！');
       setMessageType('ok');
       setShowExplanation(true);
       setIsCompleted(true);
-      onSubmitAnswer(selectedAnswer, true);
+      onSubmitAnswer(selectedAnswer, true, currentProblem.xp || 10); // 答對給全額經驗
     } else {
       const newWrongAttempts = wrongAttempts + 1;
       setWrongAttempts(newWrongAttempts);
-      
+
       if (newWrongAttempts >= 2) {
         setMessage(`答錯了，正確答案是 ${currentProblem.answer}`);
         setMessageType('err');
         setShowExplanation(true);
         setIsCompleted(true);
-        onSubmitAnswer(selectedAnswer, false);
+        onSubmitAnswer(selectedAnswer, false, Math.floor((currentProblem.xp || 10) / 2)); // 答錯兩次給一半經驗
       } else {
         setMessage(`答錯了，還有 ${2 - newWrongAttempts} 次機會`);
         setMessageType('err');
@@ -53,7 +54,7 @@ export default function ProblemBox({
     if (isCompleted) {
       return;
     }
-    
+
     setSelectedAnswer('');
     setMessage('');
     setMessageType('');
@@ -112,30 +113,30 @@ export default function ProblemBox({
             </div>
           ))}
         </div>
-        
+
         {/* 只在特定條件下顯示詳解 */}
         {showExplanation && currentProblem.explain && (
           <div className="problemExplain">
             <strong>解釋：</strong>{currentProblem.explain}
           </div>
         )}
-        
+
         {message && (
           <div className={`msg ${messageType}`}>
             {message}
           </div>
         )}
-        
+
         <div className="problemActions">
-          <button 
-            className="btn small" 
+          <button
+            className="btn small"
             onClick={handleClear}
             disabled={isCompleted || (!selectedAnswer && !message)}
           >
             {isCompleted ? '已鎖定' : '清除'}
           </button>
-          <button 
-            className="btn small" 
+          <button
+            className="btn small"
             onClick={handleSubmit}
             disabled={isCompleted}
           >
@@ -146,3 +147,4 @@ export default function ProblemBox({
     </div>
   );
 }
+
