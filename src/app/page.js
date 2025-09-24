@@ -94,17 +94,21 @@ export default function Home() {
 
   // 提交答案
   const handleSubmitAnswer = (answer, isCorrect) => {
-    if (!currentProblem) return;
-
-    if (isCorrect) {
+    if (currentProblem) {
       const newDb = { ...db };
       
+      // 計算獲得的經驗值和金幣
+      const xpGained = currentProblem.xp || 10;
+      const coinsGained = Math.floor(xpGained / 2);
+      
       // 增加經驗值
-      newDb.me.exp += currentProblem.xp || 10;
+      newDb.me.exp += xpGained;
       
       // 增加技能經驗
+      let skillLevelUp = false;
+      let skillName = '';
       if (currentProblem.skill && newDb.skills[currentProblem.skill]) {
-        newDb.skills[currentProblem.skill].xp += currentProblem.xp || 10;
+        newDb.skills[currentProblem.skill].xp += xpGained;
         
         // 檢查技能升級
         const skill = newDb.skills[currentProblem.skill];
@@ -112,18 +116,44 @@ export default function Home() {
         if (skill.xp >= needed) {
           skill.lvl += 1;
           skill.xp -= needed;
+          skillLevelUp = true;
+          skillName = skill.name.zh || skill.name;
         }
       }
       
       // 增加金幣
-      newDb.me.coins += Math.floor((currentProblem.xp || 10) / 2);
+      newDb.me.coins += coinsGained;
       
       // 檢查角色升級
+      let charLevelUp = false;
       const charNeeded = 100 + (newDb.me.level - 1) * 20;
       if (newDb.me.exp >= charNeeded) {
         newDb.me.level += 1;
         newDb.me.exp -= charNeeded;
+        charLevelUp = true;
       }
+      
+      // 加入通知訊息
+      const notifications = [...newDb.notifs];
+      
+      if (isCorrect) {
+        notifications.unshift(`✅ 完成任務：${currentProblem.title}`);
+        notifications.unshift(`💰 獲得 ${coinsGained} 金幣`);
+        notifications.unshift(`⭐ 獲得 ${xpGained} 經驗值`);
+      } else {
+        notifications.unshift(`❌ 任務失敗：${currentProblem.title}`);
+      }
+      
+      if (skillLevelUp) {
+        notifications.unshift(`🎉 ${skillName} 升級至 Lv.${newDb.skills[currentProblem.skill].lvl}！`);
+      }
+      
+      if (charLevelUp) {
+        notifications.unshift(`🌟 角色升級至 Lv.${newDb.me.level}！`);
+      }
+      
+      // 保持最多 10 條通知
+      newDb.notifs = notifications.slice(0, 10);
       
       // 標記任務完成
       if (currentProblem.isCore) {
