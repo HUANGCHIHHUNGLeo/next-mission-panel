@@ -24,37 +24,51 @@ ChartJS.register(
 export default function RadarChart({ skills }) {
   const chartRef = useRef(null);
 
-  const skillNames = {
-    calc: '運算能力',
-    geom: '幾何圖形',
-    algebra: '代數運用',
-    apply: '解題應用'
+  // 確保有預設值，避免數據問題
+  const defaultSkills = {
+    calc: { name: { zh: '運算能力' }, lvl: 1 },
+    geom: { name: { zh: '幾何圖形' }, lvl: 1 },
+    algebra: { name: { zh: '代數運用' }, lvl: 1 },
+    apply: { name: { zh: '解題應用' }, lvl: 1 }
   };
 
-  // 確保技能順序一致，並處理數據
+  // 合併技能數據，確保所有技能都存在
+  const mergedSkills = { ...defaultSkills, ...skills };
+
+  // 固定順序和標籤
   const skillOrder = ['calc', 'geom', 'algebra', 'apply'];
-  const labels = skillOrder.map(key => skillNames[key]);
-  const skillData = skillOrder.map(key => {
-    const skill = skills[key];
-    return skill ? skill.lvl || 1 : 1;
+  const labels = [
+    '運算能力',
+    '幾何圖形', 
+    '代數運用',
+    '解題應用'
+  ];
+
+  // 提取技能等級數據
+  const skillLevels = skillOrder.map(key => {
+    const skill = mergedSkills[key];
+    return skill && skill.lvl ? skill.lvl : 1;
   });
+
+  console.log('Radar Chart Data:', { labels, skillLevels }); // 調試用
 
   const data = {
     labels: labels,
     datasets: [
       {
         label: '技能等級',
-        data: skillData,
+        data: skillLevels,
         backgroundColor: 'rgba(98, 200, 255, 0.2)',
         borderColor: 'rgba(98, 200, 255, 1)',
         borderWidth: 2,
         pointBackgroundColor: 'rgba(98, 200, 255, 1)',
         pointBorderColor: '#fff',
         pointBorderWidth: 2,
-        pointRadius: 4,
+        pointRadius: 5,
         pointHoverBackgroundColor: '#fff',
         pointHoverBorderColor: 'rgba(98, 200, 255, 1)',
-        pointHoverRadius: 6,
+        pointHoverRadius: 7,
+        fill: true,
       },
     ],
   };
@@ -74,7 +88,7 @@ export default function RadarChart({ skills }) {
         borderWidth: 1,
         callbacks: {
           label: function(context) {
-            return `${context.label}: Lv.${context.raw}`;
+            return `${context.label}: Lv.${context.parsed.r}`;
           }
         }
       },
@@ -84,6 +98,15 @@ export default function RadarChart({ skills }) {
         beginAtZero: true,
         min: 0,
         max: 10,
+        ticks: {
+          stepSize: 1,
+          color: 'rgba(234, 255, 255, 0.6)',
+          backdropColor: 'transparent',
+          font: {
+            size: 10,
+          },
+          showLabelBackdrop: false,
+        },
         angleLines: {
           color: 'rgba(98, 200, 255, 0.3)',
           lineWidth: 1,
@@ -98,38 +121,26 @@ export default function RadarChart({ skills }) {
             family: 'Orbitron, Share Tech Mono, monospace',
             size: 11,
           },
-          padding: 10,
-        },
-        ticks: {
-          color: 'rgba(234, 255, 255, 0.6)',
-          backdropColor: 'transparent',
-          font: {
-            size: 10,
-          },
-          stepSize: 1,
-          showLabelBackdrop: false,
+          padding: 15,
         },
       },
     },
     elements: {
       line: {
-        tension: 0.1,
+        tension: 0,
       },
-      point: {
-        radius: 4,
-      },
+    },
+    interaction: {
+      intersect: false,
     },
   };
 
   return (
     <div className="radarPanel">
       <h3>能力雷達圖</h3>
-      <div style={{ height: '220px', width: '100%' }}>
+      <div style={{ height: '220px', width: '100%', position: 'relative' }}>
         <Radar ref={chartRef} data={data} options={options} />
       </div>
     </div>
   );
 }
-
-
-即時
