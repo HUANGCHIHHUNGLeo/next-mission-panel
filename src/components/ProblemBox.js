@@ -49,12 +49,16 @@ export default function ProblemBox({
   };
 
   const handleClear = () => {
+    // 如果任務已完成，不允許清除重新答題
+    if (isCompleted) {
+      return;
+    }
+    
     setSelectedAnswer('');
     setMessage('');
     setMessageType('');
     setWrongAttempts(0);
     setShowExplanation(false);
-    setIsCompleted(false);
     onClearAnswer();
   };
 
@@ -126,9 +130,9 @@ export default function ProblemBox({
           <button 
             className="btn small" 
             onClick={handleClear}
-            disabled={!selectedAnswer && !message}
+            disabled={isCompleted || (!selectedAnswer && !message)}
           >
-            清除
+            {isCompleted ? '已鎖定' : '清除'}
           </button>
           <button 
             className="btn small" 
