@@ -5,6 +5,7 @@ export default function TaskList({
   dailyTasks, 
   refreshCards, 
   coins,
+  specialTraining,
   onTaskSelect, 
   onRefreshTasks, 
   onRerollSide,
@@ -48,9 +49,13 @@ export default function TaskList({
       {/* 日常任務 */}
       <div className="panel">
         <h2>
-          特別訓練
+          特別訓練 <span className="sm">（今日剩餘 {Math.max(0, 5 - (specialTraining?.dailyUpdates || 0))} 次更新）</span>
           <span>
-            <button className="btn" onClick={onRerollSide}>
+            <button 
+              className="btn" 
+              onClick={onRerollSide}
+              disabled={(specialTraining?.dailyUpdates || 0) >= 5}
+            >
               更新
             </button>
           </span>

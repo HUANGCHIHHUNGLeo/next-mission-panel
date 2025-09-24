@@ -31,7 +31,8 @@ export default function ProblemBox({
       setMessageType('ok');
       setShowExplanation(true);
       setIsCompleted(true);
-      onSubmitAnswer(selectedAnswer, true, currentProblem.xp || 10); // 答對給全額經驗
+      // 傳遞技能和經驗值信息
+      onSubmitAnswer(selectedAnswer, true, currentProblem.xp || 10, currentProblem.skill); // 答對給全額經驗
     } else {
       const newWrongAttempts = wrongAttempts + 1;
       setWrongAttempts(newWrongAttempts);
@@ -41,7 +42,7 @@ export default function ProblemBox({
         setMessageType('err');
         setShowExplanation(true);
         setIsCompleted(true);
-        onSubmitAnswer(selectedAnswer, false, Math.floor((currentProblem.xp || 10) / 2)); // 答錯兩次給一半經驗
+        onSubmitAnswer(selectedAnswer, false, Math.floor((currentProblem.xp || 10) / 2), currentProblem.skill); // 答錯兩次給一半經驗
       } else {
         setMessage(`答錯了，還有 ${2 - newWrongAttempts} 次機會`);
         setMessageType('err');

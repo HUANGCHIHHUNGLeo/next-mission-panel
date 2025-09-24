@@ -25,6 +25,7 @@ const DEFAULT_DB = {
   },
   cards: { refresh: 2 },
   login: { streak: 0, last: 0 },
+  specialTraining: { dailyUpdates: 0, lastUpdateDate: null },
   notifs: ['歡迎來到學習任務面板！'],
   skills: {
     number_sense: { name: { zh: '數感力' }, xp: 0, lvl: 1, unlocked: true },
@@ -106,7 +107,7 @@ export default function Home() {
   };
 
   // 提交答案
-  const handleSubmitAnswer = (selectedAnswer, isCorrect, xpGained) => {
+  const handleSubmitAnswer = (selectedAnswer, isCorrect, xpGained, skillKey) => {
     if (currentProblem) {
       const newDb = { ...db };
       
@@ -119,11 +120,15 @@ export default function Home() {
       // 增加技能經驗
       let skillLevelUp = false;
       let skillName = "";
-      if (currentProblem.skill && newDb.skills[currentProblem.skill]) {
-        newDb.skills[currentProblem.skill].xp += xpGained;
+      
+      // 使用傳入的skillKey或currentProblem.skill
+      const targetSkill = skillKey || currentProblem.skill;
+      
+      if (targetSkill && newDb.skills[targetSkill]) {
+        newDb.skills[targetSkill].xp += xpGained;
         
         // 檢查技能升級
-        const skill = newDb.skills[currentProblem.skill];
+        const skill = newDb.skills[targetSkill];
         const needed = 100 + (skill.lvl - 1) * 20;
         if (skill.xp >= needed) {
           skill.lvl += 1;
@@ -201,6 +206,25 @@ export default function Home() {
 
   // 更新日常任務 (現在是特別訓練)
   const handleRerollSide = () => {
+    const today = new Date().toDateString();
+    const newDb = { ...db };
+    
+    // 檢查是否是新的一天
+    if (newDb.specialTraining.lastUpdateDate !== today) {
+      newDb.specialTraining.dailyUpdates = 0;
+      newDb.specialTraining.lastUpdateDate = today;
+    }
+    
+    // 檢查是否已達到每日更新限制
+    if (newDb.specialTraining.dailyUpdates >= 5) {
+      alert('今日特別訓練更新次數已用完（每日限5次）');
+      return;
+    }
+    
+    // 增加更新次數
+    newDb.specialTraining.dailyUpdates += 1;
+    saveData(newDb);
+    
     // 重新載入特別訓練 (日常任務)
     loadTasks(false, true);
   };
@@ -289,6 +313,7 @@ export default function Home() {
                 dailyTasks={dailyTasks}
                 refreshCards={db.cards.refresh}
                 coins={db.me.coins}
+                specialTraining={db.specialTraining}
                 onTaskSelect={handleTaskSelect}
                 onRefreshTasks={handleRefreshTasks}
                 onRerollSide={handleRerollSide}
