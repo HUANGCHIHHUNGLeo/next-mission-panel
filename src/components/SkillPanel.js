@@ -13,13 +13,16 @@ export default function SkillPanel({
 
   const renderSkillBar = (skill) => {
     const percentage = calculateExpPercentage(skill.xp, skill.lvl);
+    const needed = 100 + (Math.max(1, skill.lvl) - 1) * 20;
+    const tooltipText = `${skill.xp}/${needed}`;
+    
     return (
       <div key={skill.name.zh} className="stat">
         <div className="skillName">
           {skill.name.zh}
           <span className="lv">Lv.{skill.lvl}</span>
         </div>
-        <div className="bar">
+        <div className="bar" data-tooltip={tooltipText}>
           <i style={{ width: `${percentage}%` }}></i>
         </div>
         <div className="val">{skill.xp}</div>
@@ -42,7 +45,7 @@ export default function SkillPanel({
 
       <div className="xp">
         <div>角色經驗</div>
-        <div className="bar">
+        <div className="bar" data-tooltip={`${userInfo.exp}/${100 + (Math.max(1, userInfo.level) - 1) * 20}`}>
           <i style={{ width: `${userExp}%` }}></i>
         </div>
         <div>{userExp}%</div>
