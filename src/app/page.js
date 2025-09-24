@@ -65,18 +65,22 @@ export default function Home() {
   };
 
   // 載入題庫
-  const loadTasks = async () => {
+  const loadTasks = async (loadCore = true, loadDaily = true) => {
     try {
       const [coreRes, dailyRes] = await Promise.all([
-        fetch('/tasks/core.json'),
-        fetch('/tasks/daily.json')
+        loadCore ? fetch(\'/tasks/core.json\') : Promise.resolve({ json: () => Promise.resolve([]) }),
+        loadDaily ? fetch(\'/tasks/daily.json\') : Promise.resolve({ json: () => Promise.resolve([]) })
       ]);
       const core = await coreRes.json();
       const daily = await dailyRes.json();
-      setCoreTasks(core.map(task => ({ ...task, done: false })));
-      setDailyTasks(daily.map(task => ({ ...task, done: false })));
+      if (loadCore) {
+        setCoreTasks(core.map(task => ({ ...task, done: false })));
+      }
+      if (loadDaily) {
+        setDailyTasks(daily.map(task => ({ ...task, done: false })));
+      }
     } catch (e) {
-      console.error('載入任務失敗', e);
+      console.error(\'載入任務失敗\', e);
     }
   };
 
@@ -183,13 +187,14 @@ export default function Home() {
     newDb.cards.refresh -= 1;
     saveData(newDb);
     
-    // 重新載入任務
-    loadTasks();
+    // 重新載入核心任務
+    loadTasks(true, false);
   };
 
   // 更新日常任務
   const handleRerollSide = () => {
-    loadTasks();
+    // 重新載入日常任務
+    loadTasks(false, true);
   };
 
   // 購買卡片
