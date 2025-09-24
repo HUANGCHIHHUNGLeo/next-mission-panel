@@ -34,16 +34,18 @@ body {
 /* ===== Stage & Screen ===== */
 .stage {
   width: 100%;
-  min-height: 100vh;
+  height: 100vh;
   padding: 8px;
   display: flex;
   align-items: stretch;
   justify-content: stretch;
+  overflow: hidden;
 }
 
 .screen {
   position: relative;
   width: 100%;
+  height: 100%;
   background: linear-gradient(160deg, var(--deep), var(--deep2));
   border-radius: 14px;
   box-shadow:
@@ -226,12 +228,13 @@ body {
   display: grid;
   grid-template-columns: 110px 1fr 54px;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 14px;
+  padding: 4px 0;
 }
 
 .bar {
-  height: 8px;
+  height: 12px;
   background: #0a2a3c;
   border: 1px solid #62c8ff55;
   border-radius: 999px;
@@ -282,15 +285,17 @@ body {
 /* 手機版 - 保持原本大小 */
 .stat {
   display: grid;
-  grid-template-columns: minmax(150px, auto) 1fr 60px 35px;
+  grid-template-columns: minmax(130px, auto) 1fr 50px 30px;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 0;
 }
 
 .stat .bar {
   width: 72%;
   margin-left: auto;
+  height: 8px;
 }
 
 .stat .val {

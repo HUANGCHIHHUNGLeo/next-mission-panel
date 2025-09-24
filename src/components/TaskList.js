@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+
 export default function TaskList({ 
   coreTasks, 
   dailyTasks, 
@@ -11,6 +13,33 @@ export default function TaskList({
   onRerollSide,
   onBuyCards 
 }) {
+  const [countdown, setCountdown] = useState('');
+
+  // 計算到23:00的倒數時間
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 0, 0);
+      
+      // 如果現在已經過了今天的23:00，則計算到明天23:00的時間
+      if (now > today) {
+        today.setDate(today.getDate() + 1);
+      }
+      
+      const diff = today - now;
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setCountdown(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const renderTask = (task, index, isCore = false) => (
     <div key={index} className="taskItem">
       <div className="taskname">{task.title}</div>
@@ -30,7 +59,7 @@ export default function TaskList({
       {/* 核心任務 */}
       <div className="panel">
         <h2>
-          每日任務 <span className="sm">（每日 20:00 刷新）</span>
+          每日任務 <span className="sm">（{countdown} 後刷新）</span>
           <span>
             <button 
               className="btn" 
