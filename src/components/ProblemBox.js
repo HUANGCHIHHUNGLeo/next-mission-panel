@@ -72,7 +72,7 @@ export default function ProblemBox({
       setShowExplanation(false);
       setIsCompleted(false);
     }
-  }, [currentProblem?.id]);
+  }, [currentProblem]);
 
   if (!currentProblem) {
     return (
