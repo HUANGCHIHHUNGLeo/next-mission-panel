@@ -2,531 +2,431 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import Topbar from '../components/Topbar';
-import SkillPanel from '../components/SkillPanel';
-import ProblemBox from '../components/ProblemBox';
-import TaskList from '../components/TaskList';
-import CharacterView from '../components/CharacterView';
-import SettingsView from '../components/SettingsView';
-import AuthModal from '../components/AuthModal';
+import { useRouter } from 'next/navigation';
 
-const STORAGE_KEY = 'one_prof_mvp_step2';
+export default function LoginPage() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [initialLoading, setInitialLoading] = useState(true);
+  const router = useRouter();
 
-const DEFAULT_DB = {
-  lang: 'zh',
-  me: {
-    name: '',
-    gender: 'male',
-    title: '學生',
-    cls: '五年級',
-    level: 1,
-    exp: 0,
-    coins: 200,
-    avatarImg: null,
-  },
-  cards: { refresh: 2 },
-  login: { streak: 0, last: 0 },
-  specialTraining: { dailyUpdates: 0, lastUpdateDate: null },
-  notifs: ['歡迎來到學習任務面板！'],
-  skills: {
-    number_sense: { name: { zh: '數感力' }, xp: 0, lvl: 1, unlocked: true },
-    calculation: { name: { zh: '運算力' }, xp: 0, lvl: 1, unlocked: true },
-    geometry: { name: { zh: '幾何力' }, xp: 0, lvl: 1, unlocked: true },
-    reasoning: { name: { zh: '推理力' }, xp: 0, lvl: 1, unlocked: true },
-    chart_reading: { name: { zh: '圖解力' }, xp: 0, lvl: 1, unlocked: true },
-    application: { name: { zh: '應用力' }, xp: 0, lvl: 1, unlocked: true },
-  },
-  tasks: [],
-  side: [],
-  history: [],
-  ui: { skillPct: {} },
-  currentQ: null,
-};
-
-export default function Home() {
-  const [currentView, setCurrentView] = useState('dashboard');
-  const [db, setDb] = useState(DEFAULT_DB);
-  const [coreTasks, setCoreTasks] = useState([]);
-  const [dailyTasks, setDailyTasks] = useState([]);
-  const [currentProblem, setCurrentProblem] = useState(null);
-  
-  // 認證相關狀態
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-
-  // 檢查用戶認證狀態
+  // 檢查是否已登入
   useEffect(() => {
-    // 取得當前用戶
-    const getCurrentUser = async () => {
+    const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setLoading(false);
-      
       if (user) {
-        // 載入用戶資料
-        await loadUserData(user.id);
+        router.push('/dashboard');
+      } else {
+        setInitialLoading(false);
       }
     };
 
-    getCurrentUser();
+    checkUser();
 
     // 監聽認證狀態變化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (event === 'SIGNED_IN' && session?.user) {
-          setUser(session.user);
-          await loadUserData(session.user.id);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setDb(DEFAULT_DB);
+          router.push('/dashboard');
         }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [router]);
 
-  // 載入用戶資料
-  const loadUserData = async (userId) => {
+  const handleAuth = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
     try {
-      // 載入學生檔案
-      const { data: profile } = await supabase
-        .from('student_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      // 載入技能進度
-      const { data: skills } = await supabase
-        .from('skill_progress')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (profile) {
-        const newDb = {
-          ...DEFAULT_DB,
-          me: {
-            ...DEFAULT_DB.me,
-            name: profile.display_name || '',
-            gender: profile.character_gender || 'male',
-            level: profile.level || 1,
-            exp: profile.total_exp || 0,
-            coins: profile.coins || 200,
-            avatarImg: profile.character_image,
-          }
-        };
-
-        // 更新技能資料
-        if (skills && skills.length > 0) {
-          const skillsMap = {};
-          skills.forEach(skill => {
-            const skillKey = skill.skill_name;
-            skillsMap[skillKey] = {
-              name: { zh: getSkillDisplayName(skillKey) },
-              xp: skill.current_exp || 0,
-              lvl: skill.level || 1,
-              unlocked: true
-            };
-          });
-          newDb.skills = { ...DEFAULT_DB.skills, ...skillsMap };
-        }
-
-        setDb(newDb);
-        saveData(newDb);
-      }
-    } catch (error) {
-      console.error('載入用戶資料失敗:', error);
-    }
-  };
-
-  // 取得技能顯示名稱
-  const getSkillDisplayName = (skillKey) => {
-    const skillNames = {
-      number_sense: '數感力',
-      calculation: '運算力',
-      geometry: '幾何力',
-      reasoning: '推理力',
-      chart_reading: '圖解力',
-      application: '應用力'
-    };
-    return skillNames[skillKey] || skillKey;
-  };
-
-  // 載入資料（保持原有的本地儲存功能作為備份）
-  useEffect(() => {
-    if (!user) {
-      const savedData = localStorage.getItem(STORAGE_KEY);
-      if (savedData) {
-        try {
-          const parsed = JSON.parse(savedData);
-          setDb({ ...DEFAULT_DB, ...parsed });
-        } catch (e) {
-          console.error('載入資料失敗', e);
-        }
-      }
-    }
-    loadTasks();
-  }, [user]);
-
-  // 儲存資料
-  const saveData = (newDb) => {
-    setDb(newDb);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newDb));
-  };
-
-  // 載入題庫
-  const loadTasks = async (loadCore = true, loadDaily = true) => {
-    try {
-      const corePromise = loadCore ? fetch("/tasks/core.json") : Promise.resolve({ json: () => Promise.resolve([]) });
-      const dailyPromise = loadDaily ? fetch("/tasks/daily.json") : Promise.resolve({ json: () => Promise.resolve([]) });
-      
-      const [coreRes, dailyRes] = await Promise.all([corePromise, dailyPromise]);
-      
-      const core = await coreRes.json();
-      const daily = await dailyRes.json();
-      if (loadCore) {
-        const shuffledCore = core.sort(() => 0.5 - Math.random());
-        setCoreTasks(shuffledCore.slice(0, 3).map(task => ({ ...task, done: false })));
-      }
-      if (loadDaily) {
-        const shuffledDaily = daily.sort(() => 0.5 - Math.random());
-        setDailyTasks(shuffledDaily.slice(0, 3).map(task => ({ ...task, done: false })));
-      }
-    } catch (e) {
-      console.error('載入任務失敗', e);
-    }
-  };
-
-  // 計算經驗值百分比
-  const calculateExpPercentage = () => {
-    const needed = 100 + (Math.max(1, db.me.level) - 1) * 20;
-    return Math.min(100, (db.me.exp / needed) * 100);
-  };
-
-  // 選擇任務
-  const handleTaskSelect = (task, index, isCore) => {
-    if (task.done) return;
-    setCurrentProblem({ ...task, taskIndex: index, isCore });
-  };
-
-  // 提交答案
-  const handleSubmitAnswer = async (selectedAnswer, isCorrect, xpGained, skillKey) => {
-    if (currentProblem) {
-      const newDb = { ...db };
-      
-      // 增加經驗值
-      newDb.me.exp += xpGained;
-      
-      // 計算獲得的金幣
-      const coinsGained = Math.floor(xpGained / 2);
-      
-      // 增加技能經驗
-      let skillLevelUp = false;
-      let skillName = "";
-      
-      const targetSkill = skillKey || currentProblem.skill;
-      
-      if (targetSkill && newDb.skills[targetSkill]) {
-        newDb.skills[targetSkill].xp += xpGained;
-        
-        const skill = newDb.skills[targetSkill];
-        const needed = 100 + (skill.lvl - 1) * 20;
-        if (skill.xp >= needed) {
-          skill.lvl += 1;
-          skill.xp -= needed;
-          skillLevelUp = true;
-          skillName = skill.name.zh || skill.name;
-        }
-      }
-      
-      // 增加金幣
-      newDb.me.coins += coinsGained;
-      
-      // 檢查角色升級
-      let charLevelUp = false;
-      const charNeeded = 100 + (newDb.me.level - 1) * 20;
-      if (newDb.me.exp >= charNeeded) {
-        newDb.me.level += 1;
-        newDb.me.exp -= charNeeded;
-        charLevelUp = true;
-      }
-      
-      // 加入通知訊息
-      const notifications = [...newDb.notifs];
-      
-      if (isCorrect) {
-        notifications.unshift(`✅ 完成任務：${currentProblem.title}`);
-        notifications.unshift(`💰 獲得 ${coinsGained} 金幣`);
-        notifications.unshift(`⭐ 獲得 ${xpGained} 經驗值`);
-      } else {
-        notifications.unshift(`❌ 任務失敗：${currentProblem.title}`);
-      }
-      
-      if (skillLevelUp) {
-        notifications.unshift(`🎉 ${skillName} 升級至 Lv.${newDb.skills[currentProblem.skill].lvl}！`);
-      }
-      
-      if (charLevelUp) {
-        notifications.unshift(`🌟 角色升級至 Lv.${newDb.me.level}！`);
-      }
-      
-      newDb.notifs = notifications.slice(0, 10);
-      
-      // 標記任務完成
-      if (currentProblem.isCore) {
-        setCoreTasks(prev => prev.map((task, i) => 
-          i === currentProblem.taskIndex ? { ...task, done: true } : task
-        ));
-      } else {
-        setDailyTasks(prev => prev.map((task, i) => 
-          i === currentProblem.taskIndex ? { ...task, done: true } : task
-        ));
-      }
-      
-      saveData(newDb);
-
-      // 如果用戶已登入，同步到資料庫
-      if (user) {
-        await syncToDatabase(newDb, {
-          problemId: currentProblem.id || `${currentProblem.title}-${Date.now()}`,
-          problemType: currentProblem.isCore ? 'core' : 'daily',
-          question: currentProblem.title,
-          userAnswer: selectedAnswer,
-          correctAnswer: currentProblem.answer,
-          isCorrect,
-          expGained: xpGained,
-          coinsGained,
-          skillsAffected: { [targetSkill]: xpGained }
+      if (isLogin) {
+        // 登入
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
         });
-      }
-    }
-  };
 
-  // 同步資料到資料庫
-  const syncToDatabase = async (dbData, learningRecord) => {
-    try {
-      // 更新學生檔案
-      await supabase
-        .from('student_profiles')
-        .update({
-          total_exp: dbData.me.exp,
-          level: dbData.me.level,
-          coins: dbData.me.coins,
-          character_gender: dbData.me.gender,
-          character_image: dbData.me.avatarImg,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', user.id);
+        if (error) throw error;
 
-      // 更新技能進度
-      for (const [skillKey, skillData] of Object.entries(dbData.skills)) {
-        await supabase
-          .from('skill_progress')
-          .upsert({
-            user_id: user.id,
-            skill_name: skillKey,
-            current_exp: skillData.xp,
-            level: skillData.lvl,
-            updated_at: new Date().toISOString()
-          });
-      }
+        if (data.user) {
+          setMessage('登入成功！正在跳轉...');
+          // 跳轉會由 onAuthStateChange 處理
+        }
+      } else {
+        // 註冊
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              display_name: displayName,
+            }
+          }
+        });
 
-      // 記錄學習記錄
-      if (learningRecord) {
-        await supabase
-          .from('learning_records')
-          .insert([{
-            user_id: user.id,
-            ...learningRecord
-          }]);
+        if (error) throw error;
+
+        if (data.user) {
+          // 建立用戶資料
+          const { error: profileError } = await supabase
+            .from('users')
+            .insert([
+              {
+                id: data.user.id,
+                email: data.user.email,
+                display_name: displayName,
+                role: 'student'
+              }
+            ]);
+
+          if (profileError) {
+            console.error('建立用戶資料失敗:', profileError);
+          }
+
+          // 建立學生檔案
+          const { error: studentError } = await supabase
+            .from('student_profiles')
+            .insert([
+              {
+                user_id: data.user.id,
+                character_gender: 'male',
+                total_exp: 0,
+                level: 1,
+                coins: 200
+              }
+            ]);
+
+          if (studentError) {
+            console.error('建立學生檔案失敗:', studentError);
+          }
+
+          // 初始化技能進度
+          const skills = ['number_sense', 'calculation', 'geometry', 'reasoning', 'chart_reading', 'application'];
+          const skillPromises = skills.map(skill => 
+            supabase
+              .from('skill_progress')
+              .insert([
+                {
+                  user_id: data.user.id,
+                  skill_name: skill,
+                  current_exp: 0,
+                  level: 1
+                }
+              ])
+          );
+
+          await Promise.all(skillPromises);
+
+          setMessage('註冊成功！正在跳轉...');
+          // 跳轉會由 onAuthStateChange 處理
+        }
       }
     } catch (error) {
-      console.error('同步資料失敗:', error);
+      setMessage(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 清除答案
-  const handleClearAnswer = () => {
-    // 由 ProblemBox 組件處理
-  };
-
-  // 刷新核心任務
-  const handleRefreshTasks = () => {
-    if (db.cards.refresh <= 0) return;
-    
-    const newDb = { ...db };
-    newDb.cards.refresh -= 1;
-    saveData(newDb);
-    
-    loadTasks(true, false);
-  };
-
-  // 更新日常任務
-  const handleRerollSide = () => {
-    const today = new Date().toDateString();
-    const newDb = { ...db };
-    
-    if (newDb.specialTraining.lastUpdateDate !== today) {
-      newDb.specialTraining.dailyUpdates = 0;
-      newDb.specialTraining.lastUpdateDate = today;
-    }
-    
-    if (newDb.specialTraining.dailyUpdates >= 5) {
-      alert('今日特別訓練更新次數已用完（每日限5次）');
-      return;
-    }
-    
-    newDb.specialTraining.dailyUpdates += 1;
-    saveData(newDb);
-    
-    loadTasks(false, true);
-  };
-
-  // 購買卡片
-  const handleBuyCards = (count) => {
-    const cost = count === 1 ? 100 : 450;
-    if (db.me.coins < cost) return;
-    
-    const newDb = { ...db };
-    newDb.me.coins -= cost;
-    newDb.cards.refresh += count;
-    saveData(newDb);
-  };
-
-  // 更新個人資料
-  const handleUpdateProfile = (updates) => {
-    const newDb = { ...db };
-    newDb.me = { ...newDb.me, ...updates };
-    saveData(newDb);
-  };
-
-  // 重置資料
-  const handleResetData = () => {
-    setDb(DEFAULT_DB);
-    localStorage.removeItem(STORAGE_KEY);
-    setCoreTasks([]);
-    setDailyTasks([]);
-    setCurrentProblem(null);
-    loadTasks();
-  };
-
-  // 更新頭像
-  const handleAvatarUpdate = (avatarImg) => {
-    const newDb = { ...db };
-    newDb.me.avatarImg = avatarImg;
-    saveData(newDb);
-  };
-
-  // 更新性別
-  const handleGenderUpdate = (gender) => {
-    const newDb = { ...db };
-    newDb.me.gender = gender;
-    saveData(newDb);
-  };
-
-  // 切換語言
-  const handleLanguageToggle = () => {
-    const newDb = { ...db };
-    newDb.lang = newDb.lang === 'zh' ? 'en' : 'zh';
-    saveData(newDb);
-  };
-
-  // 登出
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setDb(DEFAULT_DB);
-    localStorage.removeItem(STORAGE_KEY);
-  };
-
-  // 認證成功回調
-  const handleAuthSuccess = (authUser) => {
-    setUser(authUser);
-    setShowAuthModal(false);
-  };
-
-  if (loading) {
+  if (initialLoading) {
     return (
-      <div className="stage">
-        <div className="screen" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ color: 'var(--white)', fontSize: '18px' }}>載入中...</div>
+      <div className="login-container">
+        <div className="login-card">
+          <div className="loading-spinner">載入中...</div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="stage">
-      <div className="screen">
-        <Topbar
-          currentView={currentView}
-          onViewChange={setCurrentView}
-          userLevel={db.me.level}
-          userExp={Math.round(calculateExpPercentage())}
-          coins={db.me.coins}
-          refreshCards={db.cards.refresh}
-          notifications={db.notifs}
-          onLanguageToggle={handleLanguageToggle}
-          language={db.lang}
-          user={user}
-          onLogin={() => setShowAuthModal(true)}
-          onLogout={handleLogout}
-        />
+    <div className="login-container">
+      <div className="login-card">
+        <div className="login-header">
+          <h1>🎯 智慧數學學習平台</h1>
+          <p>讓學習數學變得有趣又有效！</p>
+        </div>
 
-        {currentView === 'dashboard' && (
-          <div id="viewDashboard">
-            <div className="cols">
-              <div>
-                <SkillPanel
-                  userInfo={db.me}
-                  userExp={Math.round(calculateExpPercentage())}
-                  skills={db.skills}
-                />
-                <ProblemBox
-                  currentProblem={currentProblem}
-                  onSubmitAnswer={handleSubmitAnswer}
-                  onClearAnswer={handleClearAnswer}
-                />
-              </div>
-              <TaskList
-                coreTasks={coreTasks}
-                dailyTasks={dailyTasks}
-                refreshCards={db.cards.refresh}
-                coins={db.me.coins}
-                specialTraining={db.specialTraining}
-                onTaskSelect={handleTaskSelect}
-                onRefreshTasks={handleRefreshTasks}
-                onRerollSide={handleRerollSide}
-                onBuyCards={handleBuyCards}
+        <div className="auth-tabs">
+          <button
+            className={`tab-btn ${isLogin ? 'active' : ''}`}
+            onClick={() => {
+              setIsLogin(true);
+              setMessage('');
+            }}
+          >
+            登入
+          </button>
+          <button
+            className={`tab-btn ${!isLogin ? 'active' : ''}`}
+            onClick={() => {
+              setIsLogin(false);
+              setMessage('');
+            }}
+          >
+            註冊
+          </button>
+        </div>
+
+        <form onSubmit={handleAuth} className="auth-form">
+          {!isLogin && (
+            <div className="form-group">
+              <label>顯示名稱</label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required={!isLogin}
+                placeholder="請輸入您的名稱"
               />
             </div>
+          )}
+
+          <div className="form-group">
+            <label>Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              placeholder="請輸入 Email"
+            />
           </div>
-        )}
 
-        {currentView === 'character' && (
-          <CharacterView
-            userInfo={db.me}
-            onAvatarUpdate={handleAvatarUpdate}
-            onGenderUpdate={handleGenderUpdate}
-          />
-        )}
+          <div className="form-group">
+            <label>密碼</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              placeholder="請輸入密碼"
+              minLength={6}
+            />
+          </div>
 
-        {currentView === 'settings' && (
-          <SettingsView
-            userInfo={db.me}
-            skills={db.skills}
-            onUpdateProfile={handleUpdateProfile}
-            onResetData={handleResetData}
-          />
-        )}
+          <button type="submit" disabled={loading} className="auth-submit-btn">
+            {loading ? '處理中...' : (isLogin ? '登入' : '註冊')}
+          </button>
 
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          onAuthSuccess={handleAuthSuccess}
-        />
+          {message && (
+            <div className={`auth-message ${message.includes('成功') ? 'success' : 'error'}`}>
+              {message}
+            </div>
+          )}
+        </form>
+
+        <div className="features">
+          <h3>✨ 平台特色</h3>
+          <ul>
+            <li>🎮 遊戲化學習體驗</li>
+            <li>📊 6大核心數學技能</li>
+            <li>🏆 個人進度追蹤</li>
+            <li>🎯 每日任務挑戰</li>
+          </ul>
+        </div>
       </div>
+
+      <style jsx>{`
+        .login-container {
+          min-height: 100vh;
+          background: radial-gradient(1100px 760px at 70% 18%, #0c151c 0%, #0a0f14 60%, #070a0d 100%) fixed;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          font-family: "Orbitron", "Share Tech Mono", monospace;
+        }
+
+        .login-card {
+          background: linear-gradient(160deg, var(--deep), var(--deep2));
+          border: 2px solid var(--grid);
+          border-radius: 20px;
+          padding: 40px;
+          width: 100%;
+          max-width: 450px;
+          box-shadow: 
+            0 0 30px rgba(98, 200, 255, .35),
+            0 0 0 1px #62c8ff33 inset;
+        }
+
+        .login-header {
+          text-align: center;
+          margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+          color: var(--white);
+          font-size: 28px;
+          margin: 0 0 10px 0;
+          text-shadow: 0 0 10px #62c8ff55;
+        }
+
+        .login-header p {
+          color: #94a3b8;
+          font-size: 16px;
+          margin: 0;
+        }
+
+        .auth-tabs {
+          display: flex;
+          margin-bottom: 30px;
+          border-radius: 10px;
+          overflow: hidden;
+          border: 1px solid var(--grid);
+        }
+
+        .tab-btn {
+          flex: 1;
+          padding: 12px;
+          background: #0d2232;
+          color: var(--white);
+          border: none;
+          cursor: pointer;
+          font-family: inherit;
+          font-size: 16px;
+          transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #1e40af 100%);
+          color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+          background: #1a2f42;
+        }
+
+        .auth-form {
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+          margin-bottom: 30px;
+        }
+
+        .form-group {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .form-group label {
+          color: var(--white);
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .form-group input {
+          background: #0d2232;
+          border: 1px solid #62c8ff66;
+          border-radius: 10px;
+          padding: 14px;
+          color: var(--white);
+          font-size: 16px;
+          font-family: inherit;
+          transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+          outline: none;
+          border-color: var(--neon);
+          box-shadow: 0 0 10px #62c8ff66;
+        }
+
+        .auth-submit-btn {
+          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #1e40af 100%);
+          border: 2px solid #60a5fa;
+          border-radius: 10px;
+          padding: 16px 24px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          margin-top: 10px;
+          font-family: inherit;
+        }
+
+        .auth-submit-btn:hover:not(:disabled) {
+          background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #2563eb 100%);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        .auth-submit-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
+
+        .auth-message {
+          padding: 12px;
+          border-radius: 8px;
+          text-align: center;
+          font-size: 14px;
+          margin-top: 10px;
+        }
+
+        .auth-message.success {
+          background: rgba(16, 185, 129, 0.2);
+          border: 1px solid #10b981;
+          color: #6ee7b7;
+        }
+
+        .auth-message.error {
+          background: rgba(239, 68, 68, 0.2);
+          border: 1px solid #ef4444;
+          color: #fca5a5;
+        }
+
+        .features {
+          border-top: 1px solid var(--grid);
+          padding-top: 20px;
+        }
+
+        .features h3 {
+          color: var(--white);
+          font-size: 18px;
+          margin: 0 0 15px 0;
+          text-align: center;
+        }
+
+        .features ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+
+        .features li {
+          color: #94a3b8;
+          font-size: 14px;
+          padding: 5px 0;
+          display: flex;
+          align-items: center;
+        }
+
+        .loading-spinner {
+          text-align: center;
+          color: var(--white);
+          font-size: 18px;
+          padding: 40px;
+        }
+
+        @media (max-width: 480px) {
+          .login-card {
+            padding: 30px 20px;
+          }
+          
+          .login-header h1 {
+            font-size: 24px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

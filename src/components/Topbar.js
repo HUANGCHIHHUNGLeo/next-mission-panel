@@ -13,7 +13,6 @@ export default function Topbar({
   onLanguageToggle,
   language,
   user,
-  onLogin,
   onLogout
 }) {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -41,28 +40,17 @@ export default function Topbar({
         </div>
         
         <div className="topStats">
-          {user ? (
-            <>
-              <span className="chip user-info">
-                👤 {user.user_metadata?.display_name || user.email}
-              </span>
-              <span className="chip">Lv.{userLevel} / {userExp}%</span>
-              <span className="chip">金幣 {coins}</span>
-              <span className="chip">刷新卡 x{refreshCards}</span>
-              <button className="langBtn" onClick={onLogout}>
-                登出
-              </button>
-            </>
-          ) : (
-            <>
-              <span className="chip">訪客模式</span>
-              <button className="langBtn" onClick={onLogin}>
-                登入
-              </button>
-            </>
-          )}
+          <span className="chip user-info">
+            👤 {user?.user_metadata?.display_name || user?.email || '用戶'}
+          </span>
+          <span className="chip">Lv.{userLevel} / {userExp}%</span>
+          <span className="chip">金幣 {coins}</span>
+          <span className="chip">刷新卡 x{refreshCards}</span>
           <button className="langBtn" onClick={onLanguageToggle}>
             {language === 'zh' ? '中' : 'EN'}
+          </button>
+          <button className="langBtn logout-btn" onClick={onLogout}>
+            登出
           </button>
         </div>
       </div>
@@ -112,6 +100,17 @@ export default function Topbar({
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+        }
+
+        .logout-btn {
+          background: rgba(239, 68, 68, 0.2) !important;
+          border-color: #ef4444 !important;
+          color: #fca5a5 !important;
+        }
+
+        .logout-btn:hover {
+          background: rgba(239, 68, 68, 0.3) !important;
+          color: #ffffff !important;
         }
 
         .expandedNotifications {
