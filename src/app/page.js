@@ -16,12 +16,30 @@ export default function LoginPage() {
 
   // 檢查是否已登入
   useEffect(() => {
+    let mounted = true;
+    
     const checkUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        router.push('/dashboard');
-      } else {
-        setInitialLoading(false);
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.error('認證檢查錯誤:', error);
+          setInitialLoading(false);
+          return;
+        }
+        
+        if (user) {
+          router.push('/dashboard');
+        } else {
+          setInitialLoading(false);
+        }
+      } catch (error) {
+        console.error('認證狀態檢查失敗:', error);
+        if (mounted) {
+          setInitialLoading(false);
+        }
       }
     };
 
@@ -30,13 +48,20 @@ export default function LoginPage() {
     // 監聽認證狀態變化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         if (event === 'SIGNED_IN' && session?.user) {
           router.push('/dashboard');
+        } else if (event === 'SIGNED_OUT') {
+          setInitialLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   const handleAuth = async (e) => {

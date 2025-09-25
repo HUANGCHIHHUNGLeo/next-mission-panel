@@ -57,17 +57,37 @@ export default function Dashboard() {
 
   // 檢查用戶認證狀態
   useEffect(() => {
+    let mounted = true;
+    
     const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push('/');
-        return;
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.error('認證檢查錯誤:', error);
+          router.push('/');
+          return;
+        }
+        
+        if (!user) {
+          router.push('/');
+          return;
+        }
+        
+        setUser(user);
+        await loadUserData(user.id);
+        
+        if (mounted) {
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error('認證狀態檢查失敗:', error);
+        if (mounted) {
+          router.push('/');
+        }
       }
-      
-      setUser(user);
-      setLoading(false);
-      await loadUserData(user.id);
     };
 
     getCurrentUser();
@@ -75,16 +95,22 @@ export default function Dashboard() {
     // 監聽認證狀態變化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!mounted) return;
+        
         if (event === 'SIGNED_OUT' || !session?.user) {
           router.push('/');
         } else if (event === 'SIGNED_IN' && session?.user) {
           setUser(session.user);
           await loadUserData(session.user.id);
+          setLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   // 載入用戶資料

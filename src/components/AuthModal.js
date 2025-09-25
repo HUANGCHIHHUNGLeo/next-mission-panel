@@ -75,80 +75,112 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
         }
 
         if (data.user) {
-          // 建立用戶資料
-          const { error: profileError } = await supabase
-            .from('users')
-            .insert([
-              {
-                id: data.user.id,
-                email: data.user.email,
-                display_name: displayName,
-                role: 'student'
-              }
-            ]);
+          try {
+            // 等待一小段時間確保用戶在資料庫中已建立
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            // 建立用戶資料 - 使用 upsert 避免重複插入
+            const { error: profileError } = await supabase
+              .from('users')
+              .upsert([
+                {
+                  id: data.user.id,
+                  email: data.user.email,
+                  display_name: displayName,
+                  role: 'student',
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              ], {
+                onConflict: 'id'
+              });
 
-          if (profileError) {
-            console.error('建立用戶資料失敗:', profileError);
-          }
+            if (profileError) {
+              console.error('建立用戶資料失敗:', profileError);
+              throw new Error('建立用戶資料失敗，請稍後再試');
+            }
 
-          // 建立學生檔案
-          const { error: studentError } = await supabase
-            .from('student_profiles')
-            .insert([
-              {
-                user_id: data.user.id,
-                character_gender: 'male',
-                total_exp: 0,
-                level: 1,
-                coins: 200
-              }
-            ]);
+            // 建立學生檔案
+            const { error: studentError } = await supabase
+              .from('student_profiles')
+              .upsert([
+                {
+                  user_id: data.user.id,
+                  character_gender: 'male',
+                  total_exp: 0,
+                  level: 1,
+                  coins: 200,
+                  display_name: displayName,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              ], {
+                onConflict: 'user_id'
+              });
 
-          if (studentError) {
-            console.error('建立學生檔案失敗:', studentError);
-          }
+            if (studentError) {
+              console.error('建立學生檔案失敗:', studentError);
+              throw new Error('建立學生檔案失敗，請稍後再試');
+            }
 
-          // 初始化技能進度
-          const skills = ['數感力', '運算力', '幾何力', '推理力', '圖解力', '應用力'];
-          const skillData = skills.map(skill => ({
-            user_id: data.user.id,
-            skill_name: skill,
-            current_exp: 0,
-            level: 1,
-            total_problems_solved: 0,
-            correct_answers: 0
-          }));
+            // 初始化技能進度 - 使用英文技能名稱
+            const skills = ['number_sense', 'calculation', 'geometry', 'reasoning', 'chart_reading', 'application'];
+            const skillData = skills.map(skill => ({
+              user_id: data.user.id,
+              skill_name: skill,
+              current_exp: 0,
+              level: 1,
+              total_problems_solved: 0,
+              correct_answers: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }));
 
-          const { error: skillError } = await supabase
-            .from('skill_progress')
-            .insert(skillData);
+            const { error: skillError } = await supabase
+              .from('skill_progress')
+              .upsert(skillData, {
+                onConflict: 'user_id,skill_name'
+              });
 
-          if (skillError) {
-            console.error('建立技能進度失敗:', skillError);
-          }
+            if (skillError) {
+              console.error('建立技能進度失敗:', skillError);
+              throw new Error('建立技能進度失敗，請稍後再試');
+            }
 
-          // 建立任務進度
-          const { error: taskError } = await supabase
-            .from('task_progress')
-            .insert([
-              {
-                user_id: data.user.id,
-                task_type: 'core',
-                completed_today: 0,
-                special_training_uses: 0,
-                refresh_cards: 2
-              },
-              {
-                user_id: data.user.id,
-                task_type: 'daily',
-                completed_today: 0,
-                special_training_uses: 0,
-                refresh_cards: 2
-              }
-            ]);
+            // 建立任務進度
+            const { error: taskError } = await supabase
+              .from('task_progress')
+              .upsert([
+                {
+                  user_id: data.user.id,
+                  task_type: 'core',
+                  completed_today: 0,
+                  special_training_uses: 0,
+                  refresh_cards: 2,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                },
+                {
+                  user_id: data.user.id,
+                  task_type: 'daily',
+                  completed_today: 0,
+                  special_training_uses: 0,
+                  refresh_cards: 2,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              ], {
+                onConflict: 'user_id,task_type'
+              });
 
-          if (taskError) {
-            console.error('建立任務進度失敗:', taskError);
+            if (taskError) {
+              console.error('建立任務進度失敗:', taskError);
+              throw new Error('建立任務進度失敗，請稍後再試');
+            }
+          } catch (dbError) {
+            console.error('資料庫操作失敗:', dbError);
+            setMessage('註冊成功，但初始化資料時發生問題。請重新登入。');
+            return;
           }
 
           setMessage('註冊成功！正在為您登入...');
@@ -177,7 +209,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           <button className="close-btn" onClick={onClose}>×</button>
         </div>
 
-        <form onSubmit={handleAuth} className="auth-form">
+        <form onSubmit={handleAuth} className="auth-form" autoComplete="off">
           {!isLogin && (
             <div className="form-group">
               <label>顯示名稱</label>
@@ -187,7 +219,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                 onChange={(e) => setDisplayName(e.target.value)}
                 required={!isLogin}
                 placeholder="請輸入您的名稱"
-                autoComplete="name"
+                autoComplete="off"
+                name="display-name"
               />
             </div>
           )}
@@ -200,7 +233,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="請輸入 Email"
-              autoComplete="email"
+              autoComplete="off"
+              name="email-address"
             />
           </div>
 
@@ -219,7 +253,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               onChange={(e) => setPassword(e.target.value)}
               required
               placeholder={isLogin ? "請輸入密碼" : "例如：abc123456"}
-              autoComplete={isLogin ? "current-password" : "new-password"}
+              autoComplete="off"
+              name="user-password"
               className={!isLogin && password ? (passwordCheck.valid ? 'valid' : 'invalid') : ''}
             />
             {!isLogin && password && (
