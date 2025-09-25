@@ -100,7 +100,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               throw new Error('建立用戶資料失敗，請稍後再試');
             }
 
-            // 建立學生檔案
+            // 建立學生檔案 - 提供完整預設值
             const { error: studentError } = await supabase
               .from('student_profiles')
               .upsert([
@@ -111,6 +111,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   level: 1,
                   coins: 200,
                   display_name: displayName,
+                  grade: 1, // 年級預設值
+                  age: 10, // 年齡預設值
+                  gender: 'male', // 性別預設值
+                  character_image: '/images/male_character.png', // 角色圖片預設值
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
                 }
