@@ -1,8 +1,11 @@
 'use client';
 
-// 安全檢查
+// 在所有 import 之前加入這個
 if (typeof window !== 'undefined') {
-  window.dashboardInitialized = true;
+  // 確保所有字符串操作都是安全的
+  String.prototype.safeSlice = function(start, end) {
+    return this ? this.slice(start, end) : '';
+  };
 }
 
 import { useState, useEffect } from 'react';
