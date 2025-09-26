@@ -450,7 +450,7 @@ export default function LoginPage() {
                   <button 
                     type="button" 
                     className="privacy-link"
-                    onClick={() => window.open('/privacy-policy', '_blank')}
+                    onClick={() => window.open('/privacy-policy.html', '_blank')}
                   >
                     隱私政策
                   </button> 
@@ -458,7 +458,7 @@ export default function LoginPage() {
                   <button 
                     type="button" 
                     className="privacy-link"
-                    onClick={() => window.open('/terms-of-service', '_blank')}
+                    onClick={() => window.open('/terms-of-service.html', '_blank')}
                   >
                     服務條款
                   </button>

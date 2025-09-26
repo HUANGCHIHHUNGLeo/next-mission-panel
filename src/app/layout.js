@@ -1,8 +1,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: '任務面板 MVP｜Next.js 版',
-  description: '學習任務管理面板',
+  title: 'AVATAR Math｜數學學習平台',
+  description: '遊戲化數學學習平台，提供個人化學習體驗',
 }
 
 export default function RootLayout({ children }) {
