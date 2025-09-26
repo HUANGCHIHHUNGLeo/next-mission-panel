@@ -8,6 +8,9 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [age, setAge] = useState('');
+  const [privacyConsent, setPrivacyConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -18,18 +21,52 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     return { valid: true, message: '密碼強度良好' };
   };
 
+  // 電話號碼驗證
+  const validatePhone = (phone) => {
+    const phoneRegex = /^09\d{8}$|^0[2-8]\d{7,8}$/;
+    return phoneRegex.test(phone);
+  };
+
+  // 年齡驗證
+  const validateAge = (age) => {
+    const ageNum = parseInt(age);
+    return ageNum >= 6 && ageNum <= 18;
+  };
+
   const passwordCheck = password ? checkPasswordStrength(password) : { valid: false, message: '' };
+  const phoneValid = phone ? validatePhone(phone) : false;
+  const ageValid = age ? validateAge(age) : false;
 
   const handleAuth = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
-    // 註冊時檢查密碼強度
-    if (!isLogin && !passwordCheck.valid) {
-      setMessage(passwordCheck.message);
-      setLoading(false);
-      return;
+    // 註冊時的額外驗證
+    if (!isLogin) {
+      if (!passwordCheck.valid) {
+        setMessage(passwordCheck.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!phoneValid) {
+        setMessage('請輸入有效的台灣電話號碼（手機：09xxxxxxxx，市話：0x-xxxxxxxx）');
+        setLoading(false);
+        return;
+      }
+
+      if (!ageValid) {
+        setMessage('年齡必須在 6-18 歲之間');
+        setLoading(false);
+        return;
+      }
+
+      if (!privacyConsent) {
+        setMessage('請同意隱私政策才能註冊');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -60,6 +97,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           options: {
             data: {
               display_name: displayName,
+              phone: phone,
+              age: parseInt(age),
             }
           }
         });
@@ -87,7 +126,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   id: data.user.id,
                   email: data.user.email,
                   display_name: displayName,
+                  phone: phone,
+                  age: parseInt(age),
                   role: 'student',
+                  privacy_consent: true,
+                  privacy_consent_date: new Date().toISOString(),
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
                 }
@@ -111,10 +154,10 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
                   level: 1,
                   coins: 200,
                   display_name: displayName,
-                  grade: 1, // 年級預設值
-                  age: 10, // 年齡預設值
-                  gender: 'male', // 性別預設值
-                  character_image: '/images/male_character.png', // 角色圖片預設值
+                  grade: Math.max(1, Math.min(12, parseInt(age) - 5)), // 根據年齡推算年級
+                  age: parseInt(age),
+                  gender: 'male', // 預設值，之後可以讓用戶修改
+                  character_image: '/images/male_character.png',
                   created_at: new Date().toISOString(),
                   updated_at: new Date().toISOString()
                 }
@@ -127,7 +170,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               throw new Error('建立學生檔案失敗，請稍後再試');
             }
 
-            // 初始化技能進度 - 使用英文技能名稱
+            // 初始化技能進度
             const skills = ['number_sense', 'calculation', 'geometry', 'reasoning', 'chart_reading', 'application'];
             const skillData = skills.map(skill => ({
               user_id: data.user.id,
@@ -203,6 +246,17 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
     }
   };
 
+  // 重置表單
+  const resetForm = () => {
+    setEmail('');
+    setPassword('');
+    setDisplayName('');
+    setPhone('');
+    setAge('');
+    setPrivacyConsent(false);
+    setMessage('');
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -215,22 +269,64 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
         <form onSubmit={handleAuth} className="auth-form" autoComplete="off">
           {!isLogin && (
-            <div className="form-group">
-              <label>顯示名稱</label>
-              <input
-                type="text"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                required={!isLogin}
-                placeholder="請輸入您的名稱"
-                autoComplete="off"
-                name="display-name"
-              />
-            </div>
+            <>
+              <div className="form-group">
+                <label>姓名 *</label>
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required={!isLogin}
+                  placeholder="請輸入您的姓名"
+                  autoComplete="off"
+                  name="display-name"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>電話號碼 *</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required={!isLogin}
+                  placeholder="例如：0912345678 或 02-12345678"
+                  autoComplete="off"
+                  name="phone-number"
+                  className={!isLogin && phone ? (phoneValid ? 'valid' : 'invalid') : ''}
+                />
+                {!isLogin && phone && !phoneValid && (
+                  <div className="field-feedback invalid">
+                    請輸入有效的台灣電話號碼
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label>年齡 *</label>
+                <input
+                  type="number"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  required={!isLogin}
+                  placeholder="請輸入年齡（6-18歲）"
+                  min="6"
+                  max="18"
+                  autoComplete="off"
+                  name="user-age"
+                  className={!isLogin && age ? (ageValid ? 'valid' : 'invalid') : ''}
+                />
+                {!isLogin && age && !ageValid && (
+                  <div className="field-feedback invalid">
+                    年齡必須在 6-18 歲之間
+                  </div>
+                )}
+              </div>
+            </>
           )}
 
           <div className="form-group">
-            <label>Email</label>
+            <label>Email *</label>
             <input
               type="email"
               value={email}
@@ -244,7 +340,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
           <div className="form-group">
             <label>
-              密碼
+              密碼 *
               {!isLogin && (
                 <span className="password-hint">
                   (至少6字元，需包含英文和數字)
@@ -262,15 +358,55 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
               className={!isLogin && password ? (passwordCheck.valid ? 'valid' : 'invalid') : ''}
             />
             {!isLogin && password && (
-              <div className={`password-feedback ${passwordCheck.valid ? 'valid' : 'invalid'}`}>
+              <div className={`field-feedback ${passwordCheck.valid ? 'valid' : 'invalid'}`}>
                 {passwordCheck.message}
               </div>
             )}
           </div>
 
+          {!isLogin && (
+            <div className="form-group privacy-group">
+              <label className="privacy-label">
+                <input
+                  type="checkbox"
+                  checked={privacyConsent}
+                  onChange={(e) => setPrivacyConsent(e.target.checked)}
+                  required={!isLogin}
+                  className="privacy-checkbox"
+                />
+                <span className="privacy-text">
+                  我已閱讀並同意 
+                  <button 
+                    type="button" 
+                    className="privacy-link"
+                    onClick={() => window.open('/privacy-policy', '_blank')}
+                  >
+                    隱私政策
+                  </button> 
+                  和 
+                  <button 
+                    type="button" 
+                    className="privacy-link"
+                    onClick={() => window.open('/terms-of-service', '_blank')}
+                  >
+                    服務條款
+                  </button>
+                </span>
+              </label>
+              <div className="privacy-note">
+                依據個人資料保護法，我們將妥善保護您的個人資料
+              </div>
+            </div>
+          )}
+
           <button 
             type="submit" 
-            disabled={loading || (!isLogin && password && !passwordCheck.valid)} 
+            disabled={loading || (!isLogin && (
+              !passwordCheck.valid || 
+              !phoneValid || 
+              !ageValid || 
+              !privacyConsent
+            ))} 
             className="auth-submit-btn"
           >
             {loading ? '處理中...' : (isLogin ? '登入' : '註冊')}
@@ -288,8 +424,7 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
             type="button"
             onClick={() => {
               setIsLogin(!isLogin);
-              setMessage('');
-              setPassword('');
+              resetForm();
             }}
             className="switch-btn"
           >
@@ -310,6 +445,8 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           align-items: center;
           justify-content: center;
           z-index: 1000;
+          overflow-y: auto;
+          padding: 20px;
         }
 
         .auth-modal {
@@ -317,9 +454,12 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           border: 2px solid var(--grid);
           border-radius: 15px;
           padding: 24px;
-          width: 90%;
-          max-width: 400px;
+          width: 100%;
+          max-width: 450px;
+          max-height: 90vh;
+          overflow-y: auto;
           box-shadow: 0 0 30px rgba(98, 200, 255, .35);
+          margin: auto;
         }
 
         .auth-modal-header {
@@ -381,7 +521,11 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           font-weight: normal;
         }
 
-        .form-group input {
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="password"],
+        .form-group input[type="tel"],
+        .form-group input[type="number"] {
           background: #0d2232;
           border: 1px solid #62c8ff66;
           border-radius: 8px;
@@ -405,17 +549,68 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
           box-shadow: 0 0 6px #62c8ff66;
         }
 
-        .password-feedback {
+        .field-feedback {
           font-size: 12px;
           margin-top: 4px;
         }
 
-        .password-feedback.valid {
+        .field-feedback.valid {
           color: #4CAF50;
         }
 
-        .password-feedback.invalid {
+        .field-feedback.invalid {
           color: #ff5d7a;
+        }
+
+        .privacy-group {
+          background: rgba(98, 200, 255, 0.05);
+          border: 1px solid rgba(98, 200, 255, 0.2);
+          border-radius: 8px;
+          padding: 16px;
+          margin: 8px 0;
+        }
+
+        .privacy-label {
+          display: flex;
+          align-items: flex-start;
+          gap: 12px;
+          cursor: pointer;
+          font-weight: normal;
+        }
+
+        .privacy-checkbox {
+          margin: 0;
+          width: 18px;
+          height: 18px;
+          flex-shrink: 0;
+          margin-top: 2px;
+        }
+
+        .privacy-text {
+          color: var(--white);
+          font-size: 14px;
+          line-height: 1.5;
+        }
+
+        .privacy-link {
+          background: none;
+          border: none;
+          color: var(--neon);
+          text-decoration: underline;
+          cursor: pointer;
+          font-size: inherit;
+          padding: 0;
+        }
+
+        .privacy-link:hover {
+          color: var(--white);
+        }
+
+        .privacy-note {
+          color: #999;
+          font-size: 12px;
+          margin-top: 8px;
+          line-height: 1.4;
         }
 
         .auth-submit-btn {
@@ -478,6 +673,25 @@ export default function AuthModal({ isOpen, onClose, onAuthSuccess }) {
 
         .switch-btn:hover {
           color: var(--white);
+        }
+
+        @media (max-width: 480px) {
+          .auth-modal {
+            padding: 20px;
+            margin: 10px;
+          }
+          
+          .auth-modal-header h2 {
+            font-size: 20px;
+          }
+          
+          .privacy-label {
+            gap: 8px;
+          }
+          
+          .privacy-text {
+            font-size: 13px;
+          }
         }
       `}</style>
     </div>
