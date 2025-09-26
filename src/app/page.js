@@ -17,46 +17,58 @@ export default function LoginPage() {
   const [initialLoading, setInitialLoading] = useState(true);
   const router = useRouter();
 
+  // 密碼強度檢查
+  const checkPasswordStrength = (password) => {
+    if (!password) return { valid: false, message: '' };
+    if (password.length < 6) return { valid: false, message: '密碼至少需要 6 個字元' };
+    if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(password)) return { valid: false, message: '密碼需包含英文字母和數字' };
+    return { valid: true, message: '密碼強度良好' };
+  };
+
+  // 電話號碼驗證
+  const validatePhone = (phone) => {
+    if (!phone) return false;
+    const phoneRegex = /^09\d{8}$|^0[2-8]\d{7,8}$/;
+    return phoneRegex.test(phone);
+  };
+
+  // 年齡驗證
+  const validateAge = (age) => {
+    if (!age) return false;
+    const ageNum = parseInt(age);
+    return ageNum >= 6 && ageNum <= 18;
+  };
+
+  const passwordCheck = checkPasswordStrength(password);
+  const phoneValid = validatePhone(phone);
+  const ageValid = validateAge(age);
+
   // 安全的認證檢查
   useEffect(() => {
     let mounted = true;
-    let timeoutId = null;
-
+    
     const checkAuth = async () => {
       try {
-        console.log('檢查認證狀態...');
-        
-        // 設定超時
-        timeoutId = setTimeout(() => {
+        // 設定超時保護
+        const timeoutId = setTimeout(() => {
           if (mounted) {
-            console.log('認證檢查超時，顯示登入頁面');
             setInitialLoading(false);
           }
-        }, 3000);
+        }, 5000);
 
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = null;
+        clearTimeout(timeoutId);
+        
+        if (mounted) {
+          if (session?.user && !error) {
+            router.push('/dashboard');
+          } else {
+            setInitialLoading(false);
+          }
         }
-        
-        if (!mounted) return;
-        
-        if (error) {
-          console.warn('Session 檢查警告:', error.message);
-        }
-        
-        if (session?.user) {
-          console.log('發現已登入用戶，跳轉到儀表板');
-          router.push('/dashboard');
-        } else {
-          console.log('未登入，顯示登入頁面');
-          setInitialLoading(false);
-        }
-        
       } catch (error) {
-        console.error('認證檢查失敗:', error);
+        console.error('認證檢查錯誤:', error);
         if (mounted) {
           setInitialLoading(false);
         }
@@ -66,66 +78,76 @@ export default function LoginPage() {
     checkAuth();
 
     // 監聽認證狀態變化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!mounted) return;
-        
-        console.log('認證狀態變化:', event);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (mounted) {
+        if (event === 'SIGNED_IN' && session) {
           router.push('/dashboard');
         } else if (event === 'SIGNED_OUT') {
           setInitialLoading(false);
         }
       }
-    );
+    });
 
     return () => {
       mounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
       subscription?.unsubscribe();
     };
   }, [router]);
 
-  const handleAuth = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setMessage('');
 
     try {
       if (isLogin) {
-        // 登入
+        // 登入邏輯
+        if (!email || !password) {
+          throw new Error('請填寫所有必填欄位');
+        }
+
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
-          password,
+          password: password,
         });
 
         if (error) {
+          if (error.message.includes('Invalid login credentials')) {
+            throw new Error('Email 或密碼錯誤，請檢查後重試');
+          }
           throw error;
         }
 
-        setMessage('登入成功！');
+        if (data.user) {
+          router.push('/dashboard');
+        }
       } else {
-        // 註冊前驗證
+        // 註冊邏輯
         if (!displayName.trim()) {
           throw new Error('請輸入姓名');
         }
         if (!phone.trim()) {
           throw new Error('請輸入電話號碼');
         }
-        if (!age || parseInt(age) < 6 || parseInt(age) > 18) {
+        if (!phoneValid) {
+          throw new Error('請輸入有效的台灣電話號碼');
+        }
+        if (!age || !ageValid) {
           throw new Error('年齡必須在 6-18 歲之間');
+        }
+        if (!email.trim()) {
+          throw new Error('請輸入 Email');
+        }
+        if (!passwordCheck.valid) {
+          throw new Error(passwordCheck.message);
         }
         if (!privacyConsent) {
           throw new Error('請同意隱私政策');
         }
 
-        // 註冊
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
-          password,
+          password: password,
           options: {
             data: {
               display_name: displayName.trim(),
@@ -139,187 +161,211 @@ export default function LoginPage() {
           if (error.message.includes('User already registered')) {
             setMessage('此 Email 已經註冊過了，請直接登入');
             setIsLogin(true);
-          } else {
-            throw error;
+            return;
           }
-        } else {
-          setMessage('註冊成功！');
+          throw error;
+        }
+
+        if (data.user) {
+          router.push('/dashboard');
         }
       }
     } catch (error) {
       console.error('認證錯誤:', error);
-      setMessage(error.message || '操作失敗，請重試');
+      setMessage(error.message || '發生未知錯誤，請稍後再試');
     } finally {
       setLoading(false);
     }
   };
 
-  // 載入畫面
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-gray-400">載入中...</p>
+          <p className="text-white text-lg">載入中...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="bg-gray-800 p-8 rounded-lg border border-gray-700 w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
+      <div className="bg-gray-800/90 backdrop-blur-sm p-8 rounded-2xl shadow-2xl w-full max-w-md border border-gray-700">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-blue-400 mb-2">AVATAR Math</h1>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
+            AVATAR Math
+          </h1>
           <p className="text-gray-400">數學學習平台</p>
         </div>
 
-        {/* 切換登入/註冊 */}
-        <div className="flex mb-6 border border-gray-600 rounded-lg overflow-hidden">
+        <div className="flex mb-6 bg-gray-700 rounded-lg p-1">
           <button
-            type="button"
-            onClick={() => {
-              setIsLogin(true);
-              setMessage('');
-            }}
-            className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+            onClick={() => setIsLogin(true)}
+            className={`flex-1 py-2 px-4 rounded-md transition-all ${
               isLogin 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'bg-blue-600 text-white shadow-lg' 
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             登入
           </button>
           <button
-            type="button"
-            onClick={() => {
-              setIsLogin(false);
-              setMessage('');
-            }}
-            className={`flex-1 py-2 px-4 text-sm font-medium transition-colors ${
+            onClick={() => setIsLogin(false)}
+            className={`flex-1 py-2 px-4 rounded-md transition-all ${
               !isLogin 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                ? 'bg-blue-600 text-white shadow-lg' 
+                : 'text-gray-300 hover:text-white'
             }`}
           >
             註冊
           </button>
         </div>
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {!isLogin && (
             <>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  姓名
-                </label>
                 <input
                   type="text"
+                  placeholder="姓名 *"
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none transition-colors"
                   required
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                  placeholder="請輸入您的姓名"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  電話號碼
-                </label>
                 <input
                   type="tel"
+                  placeholder="電話號碼 (例: 0912345678) *"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border transition-colors focus:outline-none ${
+                    phone && !phoneValid 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : phone && phoneValid 
+                        ? 'border-green-500 focus:border-green-500'
+                        : 'border-gray-600 focus:border-blue-500'
+                  }`}
                   required
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                  placeholder="09xxxxxxxx"
                 />
+                {phone && !phoneValid && (
+                  <p className="text-red-400 text-sm mt-1">請輸入有效的台灣電話號碼</p>
+                )}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  年齡
-                </label>
                 <input
                   type="number"
+                  placeholder="年齡 (6-18歲) *"
                   value={age}
                   onChange={(e) => setAge(e.target.value)}
-                  required
                   min="6"
                   max="18"
-                  className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-                  placeholder="請輸入年齡 (6-18歲)"
+                  className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border transition-colors focus:outline-none ${
+                    age && !ageValid 
+                      ? 'border-red-500 focus:border-red-500' 
+                      : age && ageValid 
+                        ? 'border-green-500 focus:border-green-500'
+                        : 'border-gray-600 focus:border-blue-500'
+                  }`}
+                  required
                 />
+                {age && !ageValid && (
+                  <p className="text-red-400 text-sm mt-1">年齡必須在 6-18 歲之間</p>
+                )}
               </div>
             </>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Email
-            </label>
             <input
               type="email"
+              placeholder="Email *"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg border border-gray-600 focus:border-blue-500 focus:outline-none transition-colors"
               required
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-              placeholder="請輸入您的 Email"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              密碼
-            </label>
             <input
               type="password"
+              placeholder="密碼 *"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg border transition-colors focus:outline-none ${
+                password && !passwordCheck.valid 
+                  ? 'border-red-500 focus:border-red-500' 
+                  : password && passwordCheck.valid 
+                    ? 'border-green-500 focus:border-green-500'
+                    : 'border-gray-600 focus:border-blue-500'
+              }`}
               required
-              minLength={6}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
-              placeholder="請輸入密碼"
             />
+            {password && passwordCheck.message && (
+              <p className={`text-sm mt-1 ${passwordCheck.valid ? 'text-green-400' : 'text-red-400'}`}>
+                {passwordCheck.message}
+              </p>
+            )}
           </div>
 
           {!isLogin && (
-            <div className="flex items-start space-x-2">
+            <div className="flex items-start space-x-3">
               <input
                 type="checkbox"
                 id="privacy"
                 checked={privacyConsent}
                 onChange={(e) => setPrivacyConsent(e.target.checked)}
                 className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                required
               />
               <label htmlFor="privacy" className="text-sm text-gray-300">
-                我已閱讀並同意隱私政策和服務條款
+                我已閱讀並同意{' '}
+                <a href="/privacy-policy.html" target="_blank" className="text-blue-400 hover:text-blue-300">
+                  隱私政策
+                </a>{' '}
+                和{' '}
+                <a href="/terms-of-service.html" target="_blank" className="text-blue-400 hover:text-blue-300">
+                  服務條款
+                </a>
               </label>
             </div>
           )}
 
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            disabled={loading || (!isLogin && (!passwordCheck.valid || !phoneValid || !ageValid || !privacyConsent))}
+            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-600 text-white py-3 rounded-lg font-semibold transition-all duration-200 disabled:cursor-not-allowed"
           >
-            {loading ? (isLogin ? '登入中...' : '註冊中...') : (isLogin ? '登入' : '註冊')}
+            {loading ? (
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                處理中...
+              </div>
+            ) : (
+              isLogin ? '登入' : '註冊'
+            )}
           </button>
-
-          {message && (
-            <div className={`text-center text-sm ${
-              message.includes('成功') ? 'text-green-400' : 'text-red-400'
-            }`}>
-              {message}
-            </div>
-          )}
         </form>
 
+        {message && (
+          <div className={`mt-4 p-3 rounded-lg text-center ${
+            message.includes('已經註冊') 
+              ? 'bg-blue-900/50 text-blue-300 border border-blue-700' 
+              : 'bg-red-900/50 text-red-300 border border-red-700'
+          }`}>
+            {message}
+          </div>
+        )}
+
         <div className="mt-6 text-center">
-          <a
-            href="/admin/login"
-            className="text-blue-400 hover:text-blue-300 text-sm"
+          <a 
+            href="/admin/login" 
+            className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
           >
             管理員登入
           </a>

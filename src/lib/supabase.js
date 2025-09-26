@@ -8,21 +8,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Supabase 配置缺失')
 }
 
+// 只修復導致 406 錯誤的配置，保留其他功能
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce'
+    detectSessionInUrl: true
   },
-  global: {
-    headers: {
-      'X-Client-Info': 'avatar-math-web',
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'Prefer': 'return=minimal'
-    }
-  },
+  // 移除可能導致 406 錯誤的 global headers
   db: {
     schema: 'public'
   },
@@ -35,7 +28,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 console.log('Supabase 客戶端已初始化')
 
-// 安全的連接測試
+// 保留連接測試功能
 export const testConnection = async () => {
   try {
     const { data, error } = await supabase.auth.getSession()
