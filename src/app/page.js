@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, testConnection } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
@@ -15,7 +15,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
-  const [connectionError, setConnectionError] = useState(false);
   const router = useRouter();
 
   // 密碼強度檢查
@@ -41,36 +40,18 @@ export default function LoginPage() {
   const phoneValid = phone ? validatePhone(phone) : false;
   const ageValid = age ? validateAge(age) : false;
 
-  // 檢查是否已登入
+  // 簡化的認證檢查
   useEffect(() => {
     let mounted = true;
-    let timeoutId;
     
     const checkUser = async () => {
       try {
-        // 設定 10 秒超時
-        timeoutId = setTimeout(() => {
-          if (mounted) {
-            console.log('認證檢查超時，停止載入');
-            setInitialLoading(false);
-            setConnectionError(true);
-          }
-        }, 10000);
-
-        // 先測試連接
-        const connectionOk = await testConnection();
-        if (!connectionOk && mounted) {
-          setConnectionError(true);
-          setInitialLoading(false);
-          clearTimeout(timeoutId);
-          return;
-        }
-
-        const { data: { user }, error } = await supabase.auth.getUser();
+        console.log('開始檢查用戶認證狀態...');
+        
+        // 直接檢查 session，不查詢資料庫
+        const { data: { session }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
-        
-        clearTimeout(timeoutId);
         
         if (error) {
           console.error('認證檢查錯誤:', error);
@@ -78,44 +59,24 @@ export default function LoginPage() {
           return;
         }
         
-        if (user) {
-          // 檢查用戶是否為管理員
-          try {
-            const { data: userData, error: userError } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', user.id)
-              .single();
-            
-            if (userError) {
-              console.error('查詢用戶角色錯誤:', userError);
-              setInitialLoading(false);
-              return;
-            }
-            
-            if (userData?.role === 'admin') {
-              router.push('/admin');
-            } else {
-              router.push('/dashboard');
-            }
-          } catch (dbError) {
-            console.error('資料庫查詢錯誤:', dbError);
-            router.push('/dashboard'); // 預設跳轉到學生儀表板
-          }
+        console.log('Session 狀態:', session ? '已登入' : '未登入');
+        
+        if (session?.user) {
+          console.log('用戶已登入，跳轉到儀表板');
+          router.push('/dashboard');
         } else {
           setInitialLoading(false);
         }
       } catch (error) {
         console.error('認證狀態檢查失敗:', error);
         if (mounted) {
-          clearTimeout(timeoutId);
           setInitialLoading(false);
-          setConnectionError(true);
         }
       }
     };
 
-    checkUser();
+    // 延遲 2 秒後開始檢查
+    const timeoutId = setTimeout(checkUser, 2000);
 
     // 監聽認證狀態變化
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -125,31 +86,9 @@ export default function LoginPage() {
         console.log('認證狀態變化:', event, session?.user?.email);
         
         if (event === 'SIGNED_IN' && session?.user) {
-          // 檢查用戶角色並跳轉
-          try {
-            const { data: userData, error: userError } = await supabase
-              .from('users')
-              .select('role')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (userError) {
-              console.error('查詢用戶角色錯誤:', userError);
-              router.push('/dashboard');
-              return;
-            }
-            
-            if (userData?.role === 'admin') {
-              router.push('/admin');
-            } else {
-              router.push('/dashboard');
-            }
-          } catch (dbError) {
-            console.error('資料庫查詢錯誤:', dbError);
-            router.push('/dashboard');
-          }
+          router.push('/dashboard');
         } else if (event === 'SIGNED_OUT') {
-          console.log('用戶已登出，停止載入狀態');
+          console.log('用戶已登出');
           setInitialLoading(false);
           // 清除所有狀態
           setEmail('');
@@ -160,14 +99,13 @@ export default function LoginPage() {
           setPrivacyConsent(false);
           setMessage('');
           setLoading(false);
-          setConnectionError(false);
         }
       }
     );
 
     return () => {
       mounted = false;
-      if (timeoutId) clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [router]);
@@ -207,21 +145,24 @@ export default function LoginPage() {
     try {
       if (isLogin) {
         // 登入
+        console.log('嘗試登入:', email);
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) {
+          console.error('登入錯誤:', error);
           setMessage('登入失敗：' + error.message);
           setLoading(false);
           return;
         }
 
-        // 登入成功後會自動觸發 onAuthStateChange
+        console.log('登入成功:', data.user?.email);
         setMessage('登入成功！正在跳轉...');
       } else {
         // 註冊
+        console.log('嘗試註冊:', email);
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -235,6 +176,7 @@ export default function LoginPage() {
         });
 
         if (error) {
+          console.error('註冊錯誤:', error);
           if (error.message.includes('User already registered')) {
             setMessage('此 Email 已經註冊過了，請直接登入');
           } else {
@@ -244,9 +186,9 @@ export default function LoginPage() {
           return;
         }
 
+        console.log('註冊成功:', data.user?.email);
         if (data.user) {
           setMessage('註冊成功！正在跳轉...');
-          // 註冊成功後會自動觸發 onAuthStateChange
         }
       }
     } catch (error) {
@@ -255,38 +197,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  // 重試連接
-  const retryConnection = () => {
-    setConnectionError(false);
-    setInitialLoading(true);
-    window.location.reload();
-  };
-
-  // 如果連接錯誤，顯示錯誤畫面
-  if (connectionError) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-        <div className="bg-gray-800 p-8 rounded-lg border border-red-500 w-full max-w-md text-center">
-          <div className="text-red-400 text-6xl mb-4">⚠️</div>
-          <h2 className="text-xl font-bold text-red-400 mb-4">連接失敗</h2>
-          <p className="text-gray-300 mb-6">
-            無法連接到 Supabase 資料庫。<br/>
-            請檢查網路連接或稍後再試。
-          </p>
-          <button
-            onClick={retryConnection}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-          >
-            重試連接
-          </button>
-          <div className="mt-4 text-xs text-gray-500">
-            如果問題持續，請聯繫技術支援
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // 如果正在載入，顯示載入畫面
   if (initialLoading) {
@@ -511,6 +421,13 @@ export default function LoginPage() {
             <li>• 個人化學習進度</li>
             <li>• 豐富的題目庫</li>
           </ul>
+        </div>
+
+        {/* 調試資訊 */}
+        <div className="mt-4 p-2 bg-gray-900 rounded text-xs text-gray-500">
+          <p>Supabase URL: https://vmhgeclykizwxcleghsw.supabase.co</p>
+          <p>Site URL: https://next-mission-panel-rfj8.vercel.app</p>
+          <p>載入狀態: {initialLoading ? '載入中' : '已載入'}</p>
         </div>
       </div>
     </div>
