@@ -1,3 +1,7 @@
+// 在文件最頂部加入
+if (typeof window !== 'undefined' && !window.supabaseInitialized) {
+  window.supabaseInitialized = true;
+}
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = 'https://vmhgeclykizwxcleghsw.supabase.co'
