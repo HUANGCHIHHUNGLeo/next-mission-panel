@@ -29,25 +29,47 @@ export default function AdminLogin() {
         return;
       }
 
-      // 檢查管理員權限
-      const { data: userData } = await supabase
+      console.log('登入成功，用戶 ID:', data.user.id);
+
+      // 檢查管理員權限 - 修復版本
+      const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('role, email')
+        .select('role, email, display_name')
         .eq('id', data.user.id)
         .single();
 
-      if (userData?.role !== 'admin' && userData?.email !== 'cortexos.main@gmail.com') {
+      console.log('用戶資料查詢結果:', userData, userError);
+
+      if (userError) {
+        console.error('查詢用戶資料錯誤:', userError);
+        setMessage('無法查詢用戶資料：' + userError.message);
+        setLoading(false);
+        return;
+      }
+
+      if (!userData) {
+        setMessage('找不到用戶資料，請先完成註冊');
+        setLoading(false);
+        return;
+      }
+
+      // 檢查管理員權限 - 更寬鬆的條件
+      if (userData.role !== 'admin' && userData.email !== 'cortexos.main@gmail.com') {
         await supabase.auth.signOut();
-        setMessage('您沒有管理員權限');
+        setMessage(`您沒有管理員權限。當前角色：${userData.role || '未設定'}，Email：${userData.email}`);
         setLoading(false);
         return;
       }
 
       // 登入成功，跳轉到管理介面
-      router.push('/admin');
+      setMessage('登入成功！正在跳轉...');
+      setTimeout(() => {
+        router.push('/admin');
+      }, 1000);
+      
     } catch (error) {
       console.error('登入錯誤:', error);
-      setMessage('登入過程發生錯誤');
+      setMessage('登入過程發生錯誤：' + error.message);
       setLoading(false);
     }
   };
@@ -121,6 +143,16 @@ export default function AdminLogin() {
             <li>• 分析技能發展</li>
             <li>• 管理任務完成情況</li>
           </ul>
+        </div>
+
+        <div className="mt-4 p-3 bg-blue-900 rounded-lg">
+          <h4 className="text-xs font-medium text-blue-300 mb-1">除錯資訊</h4>
+          <p className="text-xs text-blue-200">
+            如果登入失敗，請檢查：<br/>
+            1. Email 是否正確<br/>
+            2. 是否已在網站完成註冊<br/>
+            3. 資料庫中的 role 欄位
+          </p>
         </div>
       </div>
     </div>
