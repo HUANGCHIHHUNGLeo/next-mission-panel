@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [initialLoading, setInitialLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const router = useRouter();
 
   // 密碼強度檢查
@@ -40,73 +41,82 @@ export default function LoginPage() {
   const phoneValid = phone ? validatePhone(phone) : false;
   const ageValid = age ? validateAge(age) : false;
 
-  // 簡化的認證檢查
+  // 穩定的認證檢查
   useEffect(() => {
     let mounted = true;
-    
-    const checkUser = async () => {
+    let authSubscription = null;
+
+    const initAuth = async () => {
       try {
-        console.log('開始檢查用戶認證狀態...');
+        console.log('初始化認證檢查...');
         
-        // 直接檢查 session，不查詢資料庫
+        // 先檢查當前 session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (!mounted) return;
         
         if (error) {
-          console.error('認證檢查錯誤:', error);
-          setInitialLoading(false);
+          console.error('Session 檢查錯誤:', error);
+        }
+        
+        console.log('初始 Session 狀態:', session ? '已登入' : '未登入');
+        
+        // 如果有 session，直接跳轉
+        if (session?.user) {
+          console.log('發現已登入用戶，跳轉到儀表板');
+          router.push('/dashboard');
           return;
         }
         
-        console.log('Session 狀態:', session ? '已登入' : '未登入');
+        // 沒有 session，顯示登入頁面
+        setAuthChecked(true);
+        setInitialLoading(false);
         
-        if (session?.user) {
-          console.log('用戶已登入，跳轉到儀表板');
-          router.push('/dashboard');
-        } else {
-          setInitialLoading(false);
-        }
+        // 設定認證狀態監聽
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+          async (event, session) => {
+            if (!mounted) return;
+            
+            console.log('認證狀態變化:', event, session?.user?.email);
+            
+            if (event === 'SIGNED_IN' && session?.user) {
+              console.log('用戶登入成功，跳轉到儀表板');
+              router.push('/dashboard');
+            } else if (event === 'SIGNED_OUT') {
+              console.log('用戶已登出，清除狀態');
+              setAuthChecked(true);
+              setInitialLoading(false);
+              // 清除表單狀態
+              setEmail('');
+              setPassword('');
+              setDisplayName('');
+              setPhone('');
+              setAge('');
+              setPrivacyConsent(false);
+              setMessage('');
+              setLoading(false);
+            }
+          }
+        );
+        
+        authSubscription = subscription;
+        
       } catch (error) {
-        console.error('認證狀態檢查失敗:', error);
+        console.error('認證初始化失敗:', error);
         if (mounted) {
+          setAuthChecked(true);
           setInitialLoading(false);
         }
       }
     };
 
-    // 延遲 2 秒後開始檢查
-    const timeoutId = setTimeout(checkUser, 2000);
-
-    // 監聽認證狀態變化
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        console.log('認證狀態變化:', event, session?.user?.email);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          router.push('/dashboard');
-        } else if (event === 'SIGNED_OUT') {
-          console.log('用戶已登出');
-          setInitialLoading(false);
-          // 清除所有狀態
-          setEmail('');
-          setPassword('');
-          setDisplayName('');
-          setPhone('');
-          setAge('');
-          setPrivacyConsent(false);
-          setMessage('');
-          setLoading(false);
-        }
-      }
-    );
+    initAuth();
 
     return () => {
       mounted = false;
-      clearTimeout(timeoutId);
-      subscription.unsubscribe();
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
     };
   }, [router]);
 
@@ -160,6 +170,7 @@ export default function LoginPage() {
 
         console.log('登入成功:', data.user?.email);
         setMessage('登入成功！正在跳轉...');
+        // 不需要手動跳轉，onAuthStateChange 會處理
       } else {
         // 註冊
         console.log('嘗試註冊:', email);
@@ -189,6 +200,7 @@ export default function LoginPage() {
         console.log('註冊成功:', data.user?.email);
         if (data.user) {
           setMessage('註冊成功！正在跳轉...');
+          // 不需要手動跳轉，onAuthStateChange 會處理
         }
       }
     } catch (error) {
@@ -198,8 +210,8 @@ export default function LoginPage() {
     }
   };
 
-  // 如果正在載入，顯示載入畫面
-  if (initialLoading) {
+  // 如果還在初始化認證，顯示載入畫面
+  if (initialLoading || !authChecked) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -421,13 +433,6 @@ export default function LoginPage() {
             <li>• 個人化學習進度</li>
             <li>• 豐富的題目庫</li>
           </ul>
-        </div>
-
-        {/* 調試資訊 */}
-        <div className="mt-4 p-2 bg-gray-900 rounded text-xs text-gray-500">
-          <p>Supabase URL: https://vmhgeclykizwxcleghsw.supabase.co</p>
-          <p>Site URL: https://next-mission-panel-rfj8.vercel.app</p>
-          <p>載入狀態: {initialLoading ? '載入中' : '已載入'}</p>
         </div>
       </div>
     </div>
