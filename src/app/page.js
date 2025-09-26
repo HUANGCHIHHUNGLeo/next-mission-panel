@@ -1,5 +1,10 @@
 'use client';
 
+// 安全檢查
+if (typeof window !== 'undefined') {
+  window.dashboardInitialized = true;
+}
+
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
