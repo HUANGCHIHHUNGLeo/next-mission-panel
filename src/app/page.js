@@ -1,13 +1,5 @@
 'use client';
 
-// 在所有 import 之前加入這個
-if (typeof window !== 'undefined') {
-  // 確保所有字符串操作都是安全的
-  String.prototype.safeSlice = function(start, end) {
-    return this ? this.slice(start, end) : '';
-  };
-}
-
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useRouter } from 'next/navigation';
