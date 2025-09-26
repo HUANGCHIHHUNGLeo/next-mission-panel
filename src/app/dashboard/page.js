@@ -116,6 +116,13 @@ export default function Dashboard() {
   // 載入用戶資料
   const loadUserData = async (userId) => {
     try {
+      // 載入用戶基本資料
+      const { data: userData } = await supabase
+        .from('users')
+        .select('display_name, email')
+        .eq('id', userId)
+        .single();
+
       // 載入學生檔案
       const { data: profile } = await supabase
         .from('student_profiles')
@@ -134,7 +141,7 @@ export default function Dashboard() {
           ...DEFAULT_DB,
           me: {
             ...DEFAULT_DB.me,
-            name: profile.display_name || user?.user_metadata?.display_name || '',
+            name: profile.display_name || userData?.display_name || '',
             gender: profile.character_gender || 'male',
             level: profile.level || 1,
             exp: profile.total_exp || 0,

@@ -499,6 +499,15 @@ export default function LoginPage() {
             <li>🎯 每日任務挑戰</li>
           </ul>
         </div>
+
+        <div className="admin-link">
+          <button
+            onClick={() => router.push('/admin/login')}
+            className="admin-btn"
+          >
+            🔧 老師管理介面
+          </button>
+        </div>
       </div>
 
       <style jsx>{`
@@ -771,6 +780,29 @@ export default function LoginPage() {
           color: var(--white);
           font-size: 18px;
           padding: 40px;
+        }
+
+        .admin-link {
+          margin-top: 20px;
+          text-align: center;
+        }
+
+        .admin-btn {
+          background: linear-gradient(135deg, #4f46e5, #7c3aed);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          font-family: inherit;
+        }
+
+        .admin-btn:hover {
+          background: linear-gradient(135deg, #4338ca, #6d28d9);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
         }
 
         @media (max-width: 480px) {
