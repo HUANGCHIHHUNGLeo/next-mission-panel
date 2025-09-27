@@ -1,3 +1,11 @@
+// 全域修復 slice 錯誤
+if (typeof window !== 'undefined') {
+  const originalSlice = Array.prototype.slice;
+  Array.prototype.slice = function(...args) {
+    if (this == null) return [];
+    return originalSlice.apply(this, args);
+  };
+}
 import './globals.css'
 
 export const metadata = {
