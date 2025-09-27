@@ -59,11 +59,11 @@ export default function Topbar({
       <div className="notifyMini">
         <span className="badge">!</span>
         <div className="ttl">通知</div>
-        <ul>
-         (notifications || []).slice(0, 3).map((notif, i) => (
-            <li key={i}>{notif}</li>
-          ))}
-        </ul>
+      <ul>
+  {(notifications || []).slice(0, 3).map((notif, i) => (
+    <li key={i}>{notif}</li>
+  ))}
+</ul>
         <button 
           className="langBtn"
           onClick={() => setShowNotifications(!showNotifications)}
