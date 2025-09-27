@@ -60,7 +60,7 @@ export default function Topbar({
         <span className="badge">!</span>
         <div className="ttl">通知</div>
         <ul>
-          {notifications.slice(0, 3).map((notif, i) => (
+         (notifications || []).slice(0, 3).map((notif, i) => (
             <li key={i}>{notif}</li>
           ))}
         </ul>
