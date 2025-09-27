@@ -59,11 +59,11 @@ export default function Topbar({
       <div className="notifyMini">
         <span className="badge">!</span>
         <div className="ttl">通知</div>
-      <ul>
-  {(notifications || []).slice(0, 3).map((notif, i) => (
-    <li key={i}>{notif}</li>
-  ))}
-</ul>
+        <ul>
+          {(notifications || []).slice(0, 3).map((notif, i) => (
+            <li key={i}>{notif}</li>
+          ))}
+        </ul>
         <button 
           className="langBtn"
           onClick={() => setShowNotifications(!showNotifications)}
@@ -79,10 +79,10 @@ export default function Topbar({
           <div className="panel">
             <h3>所有通知</h3>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-              {notifications.map((notif, i) => (
+              {(notifications || []).map((notif, i) => (
                 <li key={i} style={{ 
                   padding: '8px 0', 
-                  borderBottom: i < notifications.length - 1 ? '1px solid #62c8ff33' : 'none',
+                  borderBottom: i < (notifications || []).length - 1 ? '1px solid #62c8ff33' : 'none',
                   fontSize: '13px',
                   lineHeight: '1.4'
                 }}>
