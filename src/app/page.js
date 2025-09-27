@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase, safeQuery } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import AuthModal from '../components/AuthModal';
 
 export default function Home() {
@@ -24,8 +24,7 @@ export default function Home() {
 
         if (session?.user) {
           // 安全查詢用戶資料
-          const { data: userData, error: userError } = await safeQuery(() =>
-            supabase
+          const { data: userData, error: userError } = await supabase
               .from('users')
               .select('*')
               .eq('auth_user_id', session.user.id)
@@ -44,17 +43,15 @@ export default function Home() {
                 role: session.user.email === 'cortexos.main@gmail.com' ? 'admin' : 'student'
               });
 
-            if (!insertError) {
-              // 重新查詢
-              const { data: newUserData } = await safeQuery(() =>
-                supabase
-                  .from('users')
-                  .select('*')
-                  .eq('auth_user_id', session.user.id)
-                  .single()
-              );
-              setUser(newUserData);
-            }
+     if (!insertError) {
+  // 重新查詢
+  const { data: newUserData } = await supabase
+    .from('users')
+    .select('*')
+    .eq('auth_user_id', session.user.id)
+    .single();
+  setUser(newUserData);
+}
           } else {
             setUser(userData);
           }
