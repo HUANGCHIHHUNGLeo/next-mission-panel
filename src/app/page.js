@@ -1,147 +1,125 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { useRouter } from 'next/navigation';
-import Topbar from '../components/Topbar';
-import SkillPanel from '../components/SkillPanel';
-import TaskList from '../components/TaskList';
-import CharacterView from '../components/CharacterView';
-import SettingsView from '../components/SettingsView';
+import { supabase, safeQuery } from '../lib/supabase';
+import AuthModal from '../components/AuthModal';
 
-export default function Dashboard() {
+export default function Home() {
   const [user, setUser] = useState(null);
-  const [userProfile, setUserProfile] = useState(null);
-  const [skills, setSkills] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeView, setActiveView] = useState('dashboard');
-  const router = useRouter();
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    let mounted = true;
-
+    // 安全的認證檢查
     const checkAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (!session?.user || error) {
-          router.push('/');
+        if (error) {
+          console.error('認證錯誤:', error);
+          setError('認證檢查失敗');
+          setLoading(false);
           return;
         }
 
-        if (mounted) {
-          setUser(session.user);
-          await loadUserData(session.user.id);
+        if (session?.user) {
+          // 安全查詢用戶資料
+          const { data: userData, error: userError } = await safeQuery(() =>
+            supabase
+              .from('users')
+              .select('*')
+              .eq('auth_user_id', session.user.id)
+              .single()
+          );
+
+          if (userError) {
+            console.error('用戶資料查詢錯誤:', userError);
+            // 如果查詢失敗，嘗試建立用戶記錄
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                auth_user_id: session.user.id,
+                email: session.user.email,
+                display_name: session.user.email,
+                role: session.user.email === 'cortexos.main@gmail.com' ? 'admin' : 'student'
+              });
+
+            if (!insertError) {
+              // 重新查詢
+              const { data: newUserData } = await safeQuery(() =>
+                supabase
+                  .from('users')
+                  .select('*')
+                  .eq('auth_user_id', session.user.id)
+                  .single()
+              );
+              setUser(newUserData);
+            }
+          } else {
+            setUser(userData);
+          }
+
+          // 根據角色跳轉
+          if (userData?.role === 'admin') {
+            window.location.href = '/admin';
+          } else {
+            window.location.href = '/dashboard';
+          }
         }
       } catch (error) {
-        console.error('認證檢查錯誤:', error);
-        if (mounted) {
-          router.push('/');
-        }
+        console.error('認證檢查異常:', error);
+        setError('系統錯誤，請重新整理頁面');
+      } finally {
+        setLoading(false);
       }
     };
+
+    // 5 秒超時保護
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError('載入超時，請檢查網路連接');
+      }
+    }, 5000);
 
     checkAuth();
 
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
+    return () => clearTimeout(timeoutId);
+  }, []);
 
-  const loadUserData = async (userId) => {
-    try {
-      // 載入用戶檔案
-      const { data: profile, error: profileError } = await supabase
-        .from('student_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('載入用戶檔案錯誤:', profileError);
-      }
-
-      // 載入技能進度
-      const { data: skillsData, error: skillsError } = await supabase
-        .from('skill_progress')
-        .select('*')
-        .eq('user_id', userId);
-
-      if (skillsError) {
-        console.error('載入技能進度錯誤:', skillsError);
-      }
-
-      setUserProfile(profile || {
-        display_name: user?.user_metadata?.display_name || '學生',
-        grade: 1,
-        level: 1,
-        total_exp: 0,
-        coins: 200,
-        character_gender: 'male'
-      });
-
-      setSkills(skillsData || []);
-      setLoading(false);
-    } catch (error) {
-      console.error('載入用戶資料錯誤:', error);
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/');
-    } catch (error) {
-      console.error('登出錯誤:', error);
-    }
-  };
-
+  // 載入狀態
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-white text-lg">載入中...</p>
+          <p className="text-white">載入中...</p>
         </div>
       </div>
     );
   }
 
-  const renderContent = () => {
-    switch (activeView) {
-      case 'character':
-        return <CharacterView userProfile={userProfile} skills={skills} />;
-      case 'settings':
-        return <SettingsView userProfile={userProfile} onUpdate={loadUserData} />;
-      default:
-        return (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <SkillPanel skills={skills} />
-              </div>
-              <div>
-                <TaskList userProfile={userProfile} onUpdate={loadUserData} />
-              </div>
-            </div>
-          </div>
-        );
-    }
-  };
+  // 錯誤狀態
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-400 mb-4">⚠️ {error}</div>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+          >
+            重新載入
+          </button>
+        </div>
+      </div>
+    );
+  }
 
+  // 登入頁面
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
-      <Topbar 
-        userProfile={userProfile}
-        activeView={activeView}
-        setActiveView={setActiveView}
-        onLogout={handleLogout}
-      />
-      
-      <main className="container mx-auto px-4 py-6">
-        {renderContent()}
-      </main>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+      <AuthModal />
     </div>
   );
 }

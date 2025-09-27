@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { safeMap } from '../lib/supabase';
 
 export default function Topbar({ 
   currentView, 
@@ -60,7 +61,7 @@ export default function Topbar({
         <span className="badge">!</span>
         <div className="ttl">通知</div>
         <ul>
-          {(notifications || []).slice(0, 3).map((notif, i) => (
+          {safeMap((notifications || []).slice(0, 3), (notif, i) => (
             <li key={i}>{notif}</li>
           ))}
         </ul>
