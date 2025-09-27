@@ -10,7 +10,6 @@ export default function Home() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // 安全的認證檢查
     const checkAuth = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -23,17 +22,14 @@ export default function Home() {
         }
 
         if (session?.user) {
-          // 安全查詢用戶資料
           const { data: userData, error: userError } = await supabase
-              .from('users')
-              .select('*')
-              .eq('auth_user_id', session.user.id)
-              .single()
-          );
+            .from('users')
+            .select('*')
+            .eq('auth_user_id', session.user.id)
+            .single();
 
           if (userError) {
             console.error('用戶資料查詢錯誤:', userError);
-            // 如果查詢失敗，嘗試建立用戶記錄
             const { error: insertError } = await supabase
               .from('users')
               .insert({
@@ -43,20 +39,18 @@ export default function Home() {
                 role: session.user.email === 'cortexos.main@gmail.com' ? 'admin' : 'student'
               });
 
-     if (!insertError) {
-  // 重新查詢
-  const { data: newUserData } = await supabase
-    .from('users')
-    .select('*')
-    .eq('auth_user_id', session.user.id)
-    .single();
-  setUser(newUserData);
-}
+            if (!insertError) {
+              const { data: newUserData } = await supabase
+                .from('users')
+                .select('*')
+                .eq('auth_user_id', session.user.id)
+                .single();
+              setUser(newUserData);
+            }
           } else {
             setUser(userData);
           }
 
-          // 根據角色跳轉
           if (userData?.role === 'admin') {
             window.location.href = '/admin';
           } else {
@@ -71,7 +65,6 @@ export default function Home() {
       }
     };
 
-    // 5 秒超時保護
     const timeoutId = setTimeout(() => {
       if (loading) {
         setLoading(false);
@@ -84,7 +77,6 @@ export default function Home() {
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // 載入狀態
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
@@ -96,7 +88,6 @@ export default function Home() {
     );
   }
 
-  // 錯誤狀態
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
@@ -113,7 +104,6 @@ export default function Home() {
     );
   }
 
-  // 登入頁面
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
       <AuthModal />
