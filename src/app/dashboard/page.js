@@ -292,23 +292,26 @@ export default function Dashboard() {
           <div className="flex-1 flex">
             {/* 左側面板 */}
             <div className="w-1/3 p-4 space-y-4">
-              <SkillPanel skills={db.skills} />
+              <SkillPanel 
+                userInfo={db.me || {}}
+                userExp={db.me?.exp || 0}
+                skills={db.skills || {}}
+                onSkillUpdate={handleSkillUpdate}
+              />
             </div>
             
             {/* 右側面板 */}
             <div className="w-2/3 p-4 space-y-4">
               <TaskList 
-                title="每日任務"
-                tasks={dailyTasks}
-                onTaskStart={handleTaskStart}
-                timeLeft="11:37:36 後刷新"
-              />
-              <TaskList 
-                title="特別訓練"
-                tasks={coreTasks}
-                onTaskStart={handleTaskStart}
-                timeLeft="今日剩餘 5 次更新"
-                showRefresh={true}
+                coreTasks={coreTasks || []}
+                dailyTasks={dailyTasks || []}
+                refreshCards={db.cards?.refresh || 0}
+                coins={db.me?.coins || 0}
+                specialTraining={db.specialTraining || {}}
+                onTaskSelect={handleTaskStart}
+                onRefreshTasks={() => {}}
+                onRerollSide={() => {}}
+                onBuyCards={() => {}}
               />
             </div>
           </div>
@@ -319,9 +322,16 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col">
       <Topbar 
-        user={db.me} 
+        user={db.me || {}} 
         currentView={currentView} 
-        setCurrentView={setCurrentView}
+        onViewChange={setCurrentView}
+        userLevel={db.me?.level || 1}
+        userExp={db.me?.exp || 0}
+        coins={db.me?.coins || 0}
+        refreshCards={db.cards?.refresh || 0}
+        notifications={db.notifs || []}
+        onLanguageToggle={() => {}}
+        language={db.lang || 'zh'}
         onLogout={handleLogout}
       />
       {renderCurrentView()}

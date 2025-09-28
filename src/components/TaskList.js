@@ -71,7 +71,7 @@ export default function TaskList({
           </span>
         </h2>
         <div>
-          {coreTasks.map((task, index) => renderTask(task, index, true))}
+          {(coreTasks || []).map((task, index) => renderTask(task, index, true))}
         </div>
       </div>
 
@@ -90,7 +90,7 @@ export default function TaskList({
           </span>
         </h2>
         <div>
-          {dailyTasks.map((task, index) => renderTask(task, index, false))}
+          {(dailyTasks || []).map((task, index) => renderTask(task, index, false))}
         </div>
       </div>
 
